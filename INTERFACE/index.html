@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>JARVIS CORE V5</title>
+    <link rel="stylesheet" href="/INTERFACE/style.css">
+</head>
+<body>
+
+<!-- 🛠️ SWITCHER DE DEBUG (ORIGINAL + GRÁFICOS) -->
+<div id="debug-switcher">
+    <button class="debug-btn" onclick="debugSetState('home')">Home</button>
+    <button class="debug-btn" onclick="debugSetState('setup')">Setup</button>
+    <button class="debug-btn" onclick="debugSetState('download')">Download</button>
+    <button class="debug-btn" onclick="debugSetState('sharding')">Sharding</button>
+    <button class="debug-btn" onclick="showGraphs(true)" style="border-color:#ff00ff; color:#ff00ff;">Gráficos</button>
+</div>
+
+<!-- DASHBOARD DE HARDWARE (HUD) -->
+<div id="page-graphs">
+    <div style="width:100%; display:flex; justify-content:flex-end; max-width:1200px;">
+        <button class="debug-btn" onclick="showGraphs(false)">FECHAR HUD [X]</button>
+    </div>
+    <h2 style="color:#00ffff; letter-spacing:15px; margin-bottom:40px; font-weight:300; text-shadow:0 0 10px #00ffff; text-align:center;">SISTEMA NEURAL</h2>
+    <div class="grid-container">
+        <div class="card">
+            <div class="card-title">PROCESSADOR (CPU)</div>
+            <div class="metric-value"><span id="metric-cpu">0</span><span class="metric-unit">%</span></div>
+            <div id="chart-cpu" class="chart-container"></div>
+            <div style="font-size:10px; color:#444;" id="cpu-temp">TEMP: --°C</div>
+        </div>
+        <div class="card">
+            <div class="card-title">ACELERAÇÃO NEURAL (GPU)</div>
+            <div class="metric-value"><span id="metric-gpu">0</span><span class="metric-unit">%</span></div>
+            <div id="chart-gpu" class="chart-container"></div>
+            <div style="font-size:10px; color:#444;" id="gpu-stats">TEMP: --°C | VRAM: -- | PWR: --</div>
+        </div>
+        <div class="card">
+            <div class="card-title">MEMÓRIA RAM</div>
+            <div class="metric-value"><span id="metric-ram">0</span><span class="metric-unit">%</span></div>
+            <div id="chart-ram" class="chart-container"></div>
+        </div>
+        <div class="card">
+            <div class="card-title">AIRLLM (ESTIMATIVA)</div>
+            <div class="metric-value">READY</div>
+            <div style="font-size:10px; color:#444;">I/O: 350MB/s (SSD/HD)</div>
+        </div>
+    </div>
+</div>
+
+<div id="canvas-container"></div>
+<div id="ui-layer">
+    <div class="label" id="status-label">Neural Core V5 Active</div>
+    <div id="subtitles">INICIALIZANDO SISTEMAS...</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
+<script src="/INTERFACE/app.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,100 @@
+/* ═══════════════════════════════════════════════════════
+   JARVIS CORE V5 - STYLE SYSTEM
+   ═══════════════════════════════════════════════════════ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; height: 100vh; width: 100vw; }
+
+#canvas-container { position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 1; }
+#ui-layer { position: absolute; bottom: 8%; width: 100%; text-align: center; pointer-events: none; z-index: 10; }
+.label { text-transform: uppercase; letter-spacing: 5px; font-size: 14px; opacity: 0.5; transition: color 1.2s ease, text-shadow 1.2s ease; }
+#subtitles { font-size: 26px; margin-top: 10px; font-weight: 300; font-style: italic; transition: color 1.2s ease, text-shadow 1.2s ease; }
+
+/* 🛠️ ESTILOS DE DEBUG */
+#debug-switcher {
+    position: fixed; top: 10px; left: 10px; z-index: 10000;
+    display: flex; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px;
+    border: 1px solid rgba(0,255,255,0.2);
+}
+.debug-btn {
+    background: #222; color: #00ffff; border: 1px solid #00ffff; 
+    padding: 5px 10px; font-size: 10px; cursor: pointer; border-radius: 3px;
+    text-transform: uppercase; font-weight: bold;
+}
+.debug-btn:hover { background: #00ffff; color: black; }
+
+/* ═══════════════════════════════════════════════════════
+   ESTILOS DO INSTALADOR (DONUTS E SETUP)
+   ═══════════════════════════════════════════════════════ */
+#setup-overlay { 
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    background: #050505; z-index: 9999; 
+    display: flex; flex-direction: column; align-items: center; justify-content: center; 
+    color: white; 
+}
+.setup-box {
+    background: rgba(255,255,255,0.02); padding: 40px; border-radius: 15px; 
+    border: 1px solid rgba(0,255,255,0.1); width: 620px;
+}
+.setup-input-group { margin-bottom: 20px; }
+.setup-input-group label { display: block; margin-bottom: 8px; color: #00ffff; font-size: 14px; }
+.setup-input-row { display: flex; gap: 10px; }
+.setup-input { flex: 1; background: black; border: 1px solid #333; color: white; padding: 10px; border-radius: 5px; }
+.setup-btn-sel { background: #00ffff; color: black; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+.setup-btn-main { width: 100%; padding: 15px; background: transparent; border: 2px solid #00ffff; color: #00ffff; letter-spacing: 5px; font-weight: bold; cursor: pointer; border-radius: 5px; transition: 0.3s; margin-top: 20px; }
+.setup-btn-main:hover { background: #00ffff; color: black; }
+
+/* Container das Rosquinhas */
+#donuts-container {
+    display: flex; flex-wrap: wrap; gap: 25px; justify-content: center;
+    margin-top: 20px; width: 100%;
+}
+.donut-item { display: flex; flex-direction: column; align-items: center; width: 100px; }
+.donut-label { font-size: 10px; margin-top: 5px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+
+.progress-global { width: 100%; background: #111; height: 4px; border-radius: 2px; margin-top: 30px; }
+.progress-bar { width: 0%; height: 100%; background: #00ffff; box-shadow: 0 0 10px #00ffff; transition: 0.5s; }
+
+/* Sharding Effects */
+#sharding-visual {
+    height: 150px; width: 100%; display: flex; flex-direction: column-reverse; align-items: center; gap: 4px; overflow: hidden; margin-bottom: 20px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   PÁGINA DE GRÁFICOS (DASHBOARD HUD)
+   ═══════════════════════════════════════════════════════ */
+#page-graphs {
+    position: fixed; inset: 0; z-index: 9998;
+    display: none; padding-top: 60px;
+    flex-direction: column; align-items: center; padding: 80px 20px 20px;
+    overflow-y: auto; background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(5px);
+}
+.grid-container {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px; width: 100%; max-width: 1200px;
+}
+.card {
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(0,255,255,0.1);
+    border-radius: 12px; padding: 25px; display: flex; flex-direction: column; gap: 10px;
+}
+.card-title { color: #00ffff; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8; }
+.chart-container { height: 60px; position: relative; display: flex; align-items: flex-end; gap: 3px; background: rgba(0,0,0,0.3); padding: 5px; border-radius: 4px; overflow: hidden; }
+.chart-bar { flex: 1; background: #00ffff; min-height: 2px; transition: 0.3s; opacity: 0.6; }
+.metric-value { font-size: 24px; font-weight: 200; color: #fff; }
+.metric-unit { font-size: 12px; color: #555; margin-left: 5px; }
+
+/* NAV Header (Abas) */
+#nav-header {
+    position: fixed; top: 0; left: 0; width: 100%; height: 50px;
+    display: flex; justify-content: flex-start; align-items: center;
+    padding: 0 20px; z-index: 10001; 
+    background: rgba(0,0,0,0.5); border-bottom: 1px solid rgba(0,255,255,0.1);
+}
+.nav-tab {
+    background: none; border: none; color: #555; font-size: 11px;
+    letter-spacing: 2px; padding: 15px 24px; cursor: pointer;
+    transition: 0.3s; text-transform: uppercase;
+}
+.nav-tab.active { color: #00ffff; border-bottom: 2px solid #00ffff; }
+.nav-tab:hover { color: #fff; }

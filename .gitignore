@@ -1,0 +1,22 @@
+/__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Ignorar o conteúdo da pasta DADOS, mas manter a pasta via .gitkeep
+DADOS/*
+!DADOS/.gitkeep
+
+# Ignorar o conteúdo da pasta TEMP_AUDIO, mas manter a pasta via .gitkeep
+TEMP_AUDIO/*
+!TEMP_AUDIO/.gitkeep
+
+# Arquivos temporários e grandes
+MEU modelo de ia.rar
+*.wav
+apps_cache.json
+model_registry.json
+
+# ChromaDB e outros arquivos de dados dentro de DADOS (já cobertos por DADOS/*, mas bom reforçar)
+chroma_fatos/
+chroma_historico/

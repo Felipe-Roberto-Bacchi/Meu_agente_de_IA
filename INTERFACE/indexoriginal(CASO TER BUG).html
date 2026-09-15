@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>JARVIS CORE V5</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        #canvas-container { position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        #ui-layer { position: absolute; bottom: 8%; width: 100%; text-align: center; pointer-events: none; }
+        .label    { text-transform: uppercase; letter-spacing: 5px; font-size: 14px; opacity: 0.5; transition: color 1.2s ease, text-shadow 1.2s ease; }
+        #subtitles { font-size: 26px; margin-top: 10px; font-weight: 300; font-style: italic; transition: color 1.2s ease, text-shadow 1.2s ease; }
+
+        /* 🛠️ ESTILOS DE DEBUG (TEMPORÁRIO) */
+        #debug-switcher {
+            position: fixed; top: 10px; left: 10px; z-index: 10000;
+            display: flex; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border-radius: 5px;
+            border: 1px solid rgba(0,255,255,0.2);
+        }
+        .debug-btn {
+            background: #222; color: #00ffff; border: 1px solid #00ffff; 
+            padding: 5px 10px; font-size: 10px; cursor: pointer; border-radius: 3px;
+            text-transform: uppercase; font-weight: bold;
+        }
+        .debug-btn:hover { background: #00ffff; color: black; }
+
+        /* ═══════════════════════════════════════════════════════
+           ESTILOS DO INSTALADOR (DONUTS E SETUP)
+           ═══════════════════════════════════════════════════════ */
+        #setup-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: #050505; z-index: 9999; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            color: white; 
+        }
+        .setup-box {
+            background: rgba(255,255,255,0.02); padding: 40px; border-radius: 15px; 
+            border: 1px solid rgba(0,255,255,0.1); width: 620px;
+        }
+        .setup-input-group { margin-bottom: 20px; }
+        .setup-input-group label { display: block; margin-bottom: 8px; color: #00ffff; font-size: 14px; }
+        .setup-input-row { display: flex; gap: 10px; }
+        .setup-input { flex: 1; background: black; border: 1px solid #333; color: white; padding: 10px; border-radius: 5px; }
+        .setup-btn-sel { background: #00ffff; color: black; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .setup-btn-main { width: 100%; padding: 15px; background: transparent; border: 2px solid #00ffff; color: #00ffff; letter-spacing: 5px; font-weight: bold; cursor: pointer; border-radius: 5px; transition: 0.3s; margin-top: 20px; }
+        .setup-btn-main:hover { background: #00ffff; color: black; }
+
+        /* Container das Rosquinhas */
+        #donuts-container {
+            display: flex; flex-wrap: wrap; gap: 25px; justify-content: center;
+            margin-top: 20px; width: 100%;
+        }
+        .donut-item { display: flex; flex-direction: column; align-items: center; width: 100px; }
+        .donut-label { font-size: 10px; margin-top: 5px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .progress-global { width: 100%; background: #111; height: 4px; border-radius: 2px; margin-top: 30px; }
+        .progress-bar { width: 0%; height: 100%; background: #00ffff; box-shadow: 0 0 10px #00ffff; transition: 0.5s; }
+    </style>
+</head>
+<body>
+
+<!-- 🛠️ SWITCHER DE DEBUG -->
+<div id="debug-switcher">
+    <button class="debug-btn" onclick="debugSetState('home')">Home</button>
+    <button class="debug-btn" onclick="debugSetState('setup')">Setup</button>
+    <button class="debug-btn" onclick="debugSetState('download')">Download</button>
+    <button class="debug-btn" onclick="debugSetState('sharding')">Sharding</button>
+</div>
+
+<div id="canvas-container"></div>
+<div id="ui-layer">
+    <div class="label" id="status-label">Neural Core V5 Active</div>
+    <div id="subtitles">INICIALIZANDO SISTEMAS...</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/simplex-noise/2.4.0/simplex-noise.min.js"></script>
+<script>
+
+// ═══════════════════════════════════════════════════════
+//  ESTADO GLOBAL (CÓDIGO ORIGINAL DO USUÁRIO)
+// ═══════════════════════════════════════════════════════
+const subText  = document.getElementById('subtitles');
+const label    = document.getElementById('status-label');
+
+let targetColor      = new THREE.Color('#1a0033');
+let targetIntensity  = 0.1;
+let currentIntensity = 0.1;
+let corEstado        = '#1a0033';
+let falando          = false;
+let timerVolta       = null;
+
+let currentPattern = 'dormindo';
+let targetPattern  = 'dormindo';
+let patternBlend   = 1.0;
+let frozenPattern  = null;
+
+// ═══════════════════════════════════════════════════════
+//  PADRÕES DE MOVIMENTO (CÓDIGO ORIGINAL DO USUÁRIO - SOUL GUARD)
+// ═══════════════════════════════════════════════════════
+function getPatternState(name, t, intensity) {
+    switch(name) {
+        case 'dormindo':
+            return { rotX: 0.00008, rotY: 0.0003, rotZ: 0.00005, offsetX: 0, offsetY: 0, noiseSpeed: 0.15, noiseScale: 0.3 * intensity };
+        case 'ouvindo':
+            return { rotX: 0.0004 + 0.0003 * Math.sin(t * 0.5), rotY: 0.002, rotZ: 0.0001, offsetX: 0.05 * Math.sin(t * 0.3), offsetY: 0.03 * Math.sin(t * 0.2), noiseSpeed: 0.3, noiseScale: 0.6 * intensity };
+        case 'conversa':
+            return { rotX: 0.0002, rotY: 0.001, rotZ: 0.0001, offsetX: 0, offsetY: 0, noiseSpeed: 0.4, noiseScale: 2.0 * intensity };
+        case 'hardware':
+            return { rotX: 0.0, rotY: 0.006, rotZ: 0.0, offsetX: 0, offsetY: 0, noiseSpeed: 0.2, noiseScale: 0.8 * intensity };
+        case 'app':
+            return { rotX: 0.0001, rotY: 0.002, rotZ: 0.004, offsetX: 0, offsetY: 0, noiseSpeed: 0.5, noiseScale: 1.5 * intensity };
+        case 'memoria':
+            return { rotX: 0.001, rotY: 0.001, rotZ: 0.001, offsetX: 0.12 * Math.sin(t * 0.8), offsetY: 0.12 * Math.cos(t * 0.8), noiseSpeed: 0.35, noiseScale: 1.2 * intensity };
+        case 'codigo':
+            return { rotX: 0.003 * Math.sin(t * 0.4), rotY: 0.004, rotZ: 0.002 * Math.cos(t * 0.3), offsetX: 0, offsetY: 0, noiseSpeed: 0.6, noiseScale: 1.8 * intensity };
+        case 'tarefa':
+            return { rotX: 0.0015, rotY: 0.003, rotZ: 0.001, offsetX: 0, offsetY: 0, noiseSpeed: 0.25, noiseScale: 1.0 * intensity };
+        case 'alerta':
+            return { rotX: 0.002 * Math.sin(t * 8.0), rotY: 0.008, rotZ: 0.003 * Math.cos(t * 7.0), offsetX: 0.15 * Math.sin(t * 12.0), offsetY: 0.08 * Math.cos(t * 9.0), noiseSpeed: 1.2, noiseScale: 3.0 * intensity };
+        default:
+            return { rotX: 0.0002, rotY: 0.001, rotZ: 0.0001, offsetX: 0, offsetY: 0, noiseSpeed: 0.4, noiseScale: 2.0 * intensity };
+    }
+}
+
+function lerpPattern(a, b, alpha) {
+    const lerp = (x, y, t) => x + (y - x) * t;
+    return {
+        rotX:       lerp(a.rotX,       b.rotX,       alpha),
+        rotY:       lerp(a.rotY,       b.rotY,       alpha),
+        rotZ:       lerp(a.rotZ,       b.rotZ,       alpha),
+        offsetX:    lerp(a.offsetX,    b.offsetX,    alpha),
+        offsetY:    lerp(a.offsetY,    b.offsetY,    alpha),
+        noiseSpeed: lerp(a.noiseSpeed, b.noiseSpeed, alpha),
+        noiseScale: lerp(a.noiseScale, b.noiseScale, alpha),
+    };
+}
+
+function getBlendedPattern(t, intensity) {
+    const pB = getPatternState(targetPattern, t, intensity);
+    if (patternBlend >= 1.0) return pB;
+    const pA = frozenPattern || getPatternState(currentPattern, t, intensity);
+    return lerpPattern(pA, pB, patternBlend);
+}
+
+// ═══════════════════════════════════════════════════════
+//  WEBSOCKET
+// ═══════════════════════════════════════════════════════
+function atualizarCorUI(hex) {
+    subText.style.color      = hex;
+    subText.style.textShadow = `0 0 15px ${hex}`;
+    label.style.color        = hex;
+    label.style.textShadow   = `0 0 10px ${hex}`;
+}
+
+let socket;
+function conectarWS() {
+    socket = new WebSocket('ws://' + window.location.host + '/ws');
+
+    socket.onmessage = function(event) {
+        try {
+            const d = JSON.parse(event.data);
+            if (d.type === "download_update") {
+                // Só atualiza visualmente se o elemento existir ou se for forçado
+                if (document.getElementById('donuts-container')) {
+                    atualizarProgressoVisual(d.download);
+                } else if (d.download.ativo && !window.setupIniciadoManualmente) {
+                    // Se o download começou agora e não estamos mexendo no setup, mostra
+                    atualizarProgressoVisual(d.download);
+                }
+                return;
+            }
+            if (d.type === "sharding_update") {
+                if (d.sharding.ativo) {
+                    if (!document.getElementById('shard-msg')) {
+                        if (!document.getElementById('setup-overlay')) abrirPortalSetup();
+                        mudarParaInterfaceSharding();
+                    }
+                    atualizarShardingVisual(d.sharding);
+                } else if (document.getElementById('setup-overlay') && !window.setupIniciadoManualmente) {
+                    // Se o sharding acabou, remove o overlay após um delay
+                    setTimeout(() => {
+                        const overlay = document.getElementById('setup-overlay');
+                        if (overlay) overlay.remove();
+                    }, 2000);
+                }
+                return;
+            }
+            if (d.cor) {
+                corEstado = d.cor;
+                targetColor.set(d.cor);
+                atualizarCorUI(d.cor);
+            }
+            if (d.texto !== undefined) subText.innerText = d.texto;
+            if (d.intensidade !== undefined) {
+                targetIntensity = d.intensidade;
+                if (d.intensidade > 0.15) {
+                    falando = true;
+                    if (timerVolta) clearTimeout(timerVolta);
+                } else if (falando) {
+                    falando = false;
+                    timerVolta = setTimeout(() => {
+                        targetColor.set(corEstado);
+                        atualizarCorUI(corEstado);
+                    }, 600);
+                }
+            }
+            if (d.padrao && d.padrao !== targetPattern) {
+                const tNow = Date.now() * 0.001;
+                const snap = getBlendedPattern(tNow, currentIntensity);
+                frozenPattern  = { ...snap };
+                currentPattern = targetPattern;
+                targetPattern  = d.padrao;
+                patternBlend   = 0.0;
+            }
+        } catch(e) { console.error(e); }
+    };
+
+    socket.onclose = function() { setTimeout(conectarWS, 2000); };
+    socket.onerror = function() { socket.close(); };
+}
+conectarWS();
+
+// ═══════════════════════════════════════════════════════
+//  🛠️ LÓGICA DE DEBUG E TRANSIÇÕES
+// ═══════════════════════════════════════════════════════
+window.setupIniciadoManualmente = false;
+
+function debugSetState(state) {
+    console.log("[DEBUG] Mudando para estado:", state);
+    window.setupIniciadoManualmente = true; // Impede o WS de sequestrar a tela
+    const overlay = document.getElementById('setup-overlay');
+    
+    if (state === 'home') {
+        if (overlay) overlay.remove();
+        targetPattern = 'dormindo';
+    } else if (state === 'setup') {
+        if (overlay) overlay.remove();
+        abrirPortalSetup();
+    } else if (state === 'download') {
+        if (!overlay) abrirPortalSetup();
+        setTimeout(mudarParaInterfaceDownload, 50);
+    } else if (state === 'sharding') {
+        if (!overlay) abrirPortalSetup();
+        setTimeout(mudarParaInterfaceSharding, 50);
+    }
+}
+
+// ═══════════════════════════════════════════════════════
+//  FUNÇÕES DE SETUP E DOWNLOAD (DONUTS)
+// ═══════════════════════════════════════════════════════
+async function verificarSetup() {
+    try {
+        const resp = await fetch('/system/status');
+        const data = await resp.json();
+        if (!data.configurado) {
+            abrirPortalSetup();
+        } else if (data.download && data.download.ativo) {
+            abrirPortalSetup();
+            mudarParaInterfaceDownload();
+        }
+    } catch(e) { setTimeout(verificarSetup, 2000); }
+}
+
+async function selecionarPasta(idInput) {
+    try {
+        const resp = await fetch('/system/pick_folder');
+        const data = await resp.json();
+        if (data.path) document.getElementById(idInput).value = data.path;
+    } catch(e) { console.error("Erro seletor:", e); }
+}
+
+async function abrirPortalSetup() {
+    if (document.getElementById('setup-overlay')) return;
+    
+    let modelosHTML = "Carregando núcleos recomendados...";
+    try {
+        const resp = await fetch('/system/proposed_models');
+        const data = await resp.json();
+        const m = data.modelos;
+        modelosHTML = `
+            <div style="font-size:11px; color:#555; margin-bottom:15px; text-align:left;">
+                <b style="color:#00ffff">PERFIL RECONHECIDO:</b> ${data.perfil}<br>
+                <div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; margin-top:8px; border:1px solid rgba(0,255,255,0.05);">
+                    • Roteador Neural: ${m.ROTEADOR[0]}<br>
+                    • Visão Computacional: ${m.VISAO[0]}<br>
+                    • Linguagem Principal: ${m.CONVERSA[0]}
+                </div>
+            </div>
+        `;
+    } catch(e) {}
+
+    const setupHTML = `
+    <div id="setup-overlay">
+        <div class="setup-box" id="setup-content">
+            <h1 style="letter-spacing:10px; margin-bottom:10px; color:#00ffff; text-shadow:0 0 20px #00ffff; text-align:center;">JARVIS SETUP</h1>
+            <p style="color:#666; margin-bottom:30px; letter-spacing:2px; font-size:11px; text-align:center;">CONFIGURAÇÃO DE DIRETÓRIOS NEURAIS</p>
+            
+            ${modelosHTML}
+
+            <div class="setup-input-group">
+                <label>NÚCLEOS LEVES (Pasta para SSD)</label>
+                <div class="setup-input-row">
+                    <input type="text" id="path-ssd" class="setup-input" placeholder="Ex: C:\\Jarvis\\Ollama">
+                    <button onclick="selecionarPasta('path-ssd')" class="setup-btn-sel">Escolher</button>
+                </div>
+            </div>
+
+            <div class="setup-input-group">
+                <label>NÚCLEOS GIGANTES (Pasta para HD)</label>
+                <div class="setup-input-row">
+                    <input type="text" id="path-hd" class="setup-input" placeholder="Ex: D:\\ModelosIA">
+                    <button onclick="selecionarPasta('path-hd')" class="setup-btn-sel">Escolher</button>
+                </div>
+            </div>
+
+            <button onclick="confirmarSetup()" class="setup-btn-main">CONECTAR NÚCLEOS</button>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', setupHTML);
+}
+
+async function confirmarSetup() {
+    const ssd = document.getElementById('path-ssd').value;
+    const hd = document.getElementById('path-hd').value;
+    if(!ssd || !hd) return alert("Senhor, por favor indique os caminhos de destino.");
+    
+    try {
+        const r = await fetch('/system/setup', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ ssd_path: ssd, hd_path: hd })
+        });
+        if((await r.json()).status === "success") mudarParaInterfaceDownload();
+    } catch(e) { alert("Erro de conexão."); }
+}
+
+function mudarParaInterfaceDownload() {
+    const box = document.getElementById('setup-content');
+    if (!box) return;
+    box.innerHTML = `
+        <h1 style="letter-spacing:10px; margin-bottom:10px; color:#00ffff; text-shadow:0 0 20px #00ffff; text-align:center;">DOWNLOAD ATIVO</h1>
+        <p id="dl-msg" style="color:#666; margin-bottom:30px; letter-spacing:2px; font-size:11px; text-align:center;">SINCRONIZANDO NÚCLEOS NEURAIS...</p>
+        
+        <div id="donuts-container">
+            <div style="color:#333; font-size:12px;">Aguardando sinal dos pacotes...</div>
+        </div>
+
+        <div class="progress-global">
+            <div id="dl-bar-global" class="progress-bar"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:10px; color:#00ffff; opacity:0.8;">
+            <span>PROGRESSO TOTAL</span>
+            <span id="dl-pct-total">0%</span>
+        </div>
+    `;
+    donutsInstanciados = false;
+}
+
+function mudarParaInterfaceSharding() {
+    const box = document.getElementById('setup-content');
+    if (!box) return;
+    box.innerHTML = `
+        <h1 style="letter-spacing:10px; margin-bottom:10px; color:#ff00ff; text-shadow:0 0 20px #ff00ff; text-align:center;">FATIAMENTO NEURAL</h1>
+        <p id="shard-msg" style="color:#666; margin-bottom:30px; letter-spacing:2px; font-size:11px; text-align:center;">REORGANIZANDO CAMADAS PARA PERFORMANCE...</p>
+        
+        <div id="sharding-visual" style="height:150px; width:100%; display:flex; flex-direction:column-reverse; align-items:center; gap:4px; overflow:hidden; margin-bottom:20px;">
+            <!-- Camadas animadas via JS -->
+        </div>
+
+        <div class="progress-global">
+            <div id="shard-bar" class="progress-bar" style="background:#ff00ff; box-shadow:0 0 10px #ff00ff;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:10px; color:#ff00ff; opacity:0.8;">
+            <span>ESTABILIZANDO SHARDS</span>
+            <span id="shard-pct">0%</span>
+        </div>
+    `;
+}
+
+const coresDonuts = ["#00ffff", "#ff00ff", "#00ff00", "#ffff00", "#ff8800", "#9d00ff", "#00ff88"];
+let donutsInstanciados = false;
+
+function atualizarProgressoVisual(stat) {
+    if (!stat || !stat.ativo) return;
+    
+    // Se não temos a interface de download e devemos mostrar
+    if (!document.getElementById('donuts-container')) {
+        abrirPortalSetup();
+        mudarParaInterfaceDownload();
+    }
+
+    const barGlobal = document.getElementById('dl-bar-global');
+    const pctTotal = document.getElementById('dl-pct-total');
+    const msgLabel = document.getElementById('dl-msg');
+
+    if (barGlobal) barGlobal.style.width = stat.progresso_total + "%";
+    if (pctTotal) pctTotal.innerText = stat.progresso_total + "%";
+    if (msgLabel) msgLabel.innerText = stat.mensagem.toUpperCase();
+
+    if (stat.modelos && Object.keys(stat.modelos).length > 0) {
+        const container = document.getElementById('donuts-container');
+        if (!donutsInstanciados) {
+            container.innerHTML = "";
+            let idx = 0;
+            for (const mid in stat.modelos) {
+                const cor = coresDonuts[idx % coresDonuts.length];
+                const shortName = mid.split('/').pop().split(':').shift();
+                container.innerHTML += `
+                    <div class="donut-item">
+                        <div style="position:relative; width:60px; height:60px;">
+                            <svg width="60" height="60" viewBox="0 0 80 80">
+                                <circle cx="40" cy="40" r="34" stroke="#111" stroke-width="8" fill="none" />
+                                <circle id="circle-${mid}" cx="40" cy="40" r="34" stroke="${cor}" stroke-width="8" fill="none" 
+                                        stroke-dasharray="213.6" stroke-dashoffset="213.6" stroke-linecap="round" 
+                                        style="transition:0.4s; filter:drop-shadow(0 0 3px ${cor});" />
+                            </svg>
+                            <div id="pct-${mid}" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:10px; font-weight:bold; color:${cor};">0%</div>
+                        </div>
+                        <div class="donut-label">${shortName}</div>
+                    </div>`;
+                idx++;
+            }
+            donutsInstanciados = true;
+        }
+        for (const mid in stat.modelos) {
+            const circle = document.getElementById(`circle-${mid}`);
+            if (circle) {
+                circle.style.strokeDashoffset = 213.6 - (213.6 * stat.modelos[mid] / 100);
+                document.getElementById(`pct-${mid}`).innerText = Math.round(stat.modelos[mid]) + "%";
+            }
+        }
+    }
+}
+
+function atualizarShardingVisual(stat) {
+    const bar = document.getElementById('shard-bar');
+    const pct = document.getElementById('shard-pct');
+    const msg = document.getElementById('shard-msg');
+    const visual = document.getElementById('sharding-visual');
+
+    if (bar) bar.style.width = stat.progresso + "%";
+    if (pct) pct.innerText = Math.round(stat.progresso) + "%";
+    if (msg) msg.innerText = (stat.mensagem || "FATIANDO MODELO NEURAL...").toUpperCase();
+
+    if (visual) {
+        const numLayersExpected = 20;
+        const currentLayers = visual.children.length;
+        const targetLayers = Math.floor((stat.progresso / 100) * numLayersExpected);
+
+        if (targetLayers > currentLayers) {
+            for (let i = currentLayers; i < targetLayers; i++) {
+                const layer = document.createElement('div');
+                layer.style.width = (80 + Math.random() * 20) + "%";
+                layer.style.height = "4px";
+                layer.style.background = "#ff00ff";
+                layer.style.boxShadow = "0 0 10px #ff00ff";
+                layer.style.opacity = "0";
+                layer.style.transform = "translateY(20px)";
+                layer.style.transition = "0.5s";
+                visual.appendChild(layer);
+                setTimeout(() => {
+                    layer.style.opacity = "1";
+                    layer.style.transform = "translateY(0)";
+                }, 10);
+            }
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════
+//  THREE.JS SETUP (SOUL GUARD - ORIGINAL DO USUÁRIO)
+// ═══════════════════════════════════════════════════════
+const container = document.getElementById('canvas-container');
+const simplex   = new SimplexNoise();
+const scene     = new THREE.Scene();
+const camera    = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
+const renderer  = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setSize(innerWidth, innerHeight);
+container.appendChild(renderer.domElement);
+
+const geometry          = new THREE.IcosahedronGeometry(2, 10);
+const originalPositions = geometry.attributes.position.array.slice();
+
+const pointsMat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.06, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+const wireMat   = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false });
+
+function criarTexturaGlow() {
+    const size = 128;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
+    grad.addColorStop(0,   'rgba(255,255,255,1)');
+    grad.addColorStop(0.3, 'rgba(255,255,255,0.4)');
+    grad.addColorStop(1,   'rgba(255,255,255,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size, size);
+    return new THREE.CanvasTexture(canvas);
+}
+
+const glowMat = new THREE.SpriteMaterial({ map: criarTexturaGlow(), color: 0x00ffff, transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending });
+
+const points = new THREE.Points(geometry, pointsMat);
+const sphere = new THREE.Mesh(geometry, wireMat);
+const glow   = new THREE.Sprite(glowMat);
+glow.scale.set(6, 6, 1);
+
+scene.add(points); scene.add(sphere); scene.add(glow);
+camera.position.z = 6;
+
+const renderColor = new THREE.Color('#1a0033');
+
+// ═══════════════════════════════════════════════════════
+//  LOOP DE ANIMAÇÃO (SOUL GUARD - ORIGINAL DO USUÁRIO)
+// ═══════════════════════════════════════════════════════
+function animate() {
+    requestAnimationFrame(animate);
+    const t = Date.now() * 0.001;
+
+    currentIntensity += (targetIntensity - currentIntensity) * 0.08;
+    patternBlend = Math.min(1.0, patternBlend + 0.08);
+
+    const p = getBlendedPattern(t, currentIntensity);
+
+    points.rotation.x += p.rotX;
+    points.rotation.y += p.rotY;
+    points.rotation.z += p.rotZ;
+    sphere.rotation.x  = points.rotation.x;
+    sphere.rotation.y  = points.rotation.y;
+    sphere.rotation.z  = points.rotation.z;
+
+    points.position.x = p.offsetX;
+    points.position.y = p.offsetY;
+    sphere.position.x = p.offsetX;
+    sphere.position.y = p.offsetY;
+
+    const positions = geometry.attributes.position.array;
+    for (let i = 0; i < positions.length; i += 3) {
+        const vX = originalPositions[i];
+        const vY = originalPositions[i+1];
+        const vZ = originalPositions[i+2];
+        const offset = simplex.noise3D(
+            vX + t * p.noiseSpeed,
+            vY + t * p.noiseSpeed,
+            vZ + t * p.noiseSpeed
+        ) * p.noiseScale;
+        const len = Math.sqrt(vX*vX + vY*vY + vZ*vZ);
+        positions[i]   = vX + (vX/len) * offset;
+        positions[i+1] = vY + (vY/len) * offset;
+        positions[i+2] = vZ + (vZ/len) * offset;
+    }
+    geometry.attributes.position.needsUpdate = true;
+
+    renderColor.lerp(targetColor, 0.06);
+    pointsMat.color.copy(renderColor);
+    wireMat.color.copy(renderColor);
+    glowMat.color.copy(renderColor);
+
+    const gs = 5 + (currentIntensity * 4);
+    glow.scale.set(gs, gs, 1);
+
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
+});
+
+animate();
+verificarSetup();
+</script>
+</body>
+</html>
