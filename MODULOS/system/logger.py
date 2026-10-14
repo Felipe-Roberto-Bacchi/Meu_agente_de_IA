@@ -1,6 +1,9 @@
 import os
 import logging
-import colorlog
+try:
+    import colorlog
+except ImportError:
+    colorlog = None
 from datetime import datetime
 
 # Garante que o diretório DADOS exista
@@ -25,20 +28,26 @@ def _setup_logger():
     )
     file_handler.setFormatter(file_formatter)
 
-    # 2. Handler para Console (Apenas INFO para cima, com cores)
-    console_handler = colorlog.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_formatter = colorlog.ColoredFormatter(
-        "%(log_color)s[%(levelname)s]%(reset)s %(message)s",
-        log_colors={
-            'DEBUG':    'cyan',
-            'INFO':     'white',
-            'WARNING':  'yellow',
-            'ERROR':    'red',
-            'CRITICAL': 'red,bg_white',
-        }
-    )
-    console_handler.setFormatter(console_formatter)
+    # 2. Handler para Console (Com cores se colorlog disponível, senão padrão)
+    if colorlog:
+        console_handler = colorlog.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_formatter = colorlog.ColoredFormatter(
+            "%(log_color)s[%(levelname)s]%(reset)s %(message)s",
+            log_colors={
+                'DEBUG':    'cyan',
+                'INFO':     'white',
+                'WARNING':  'yellow',
+                'ERROR':    'red',
+                'CRITICAL': 'red,bg_white',
+            }
+        )
+        console_handler.setFormatter(console_formatter)
+    else:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_formatter = logging.Formatter("[%(levelname)s] %(message)s")
+        console_handler.setFormatter(console_formatter)
 
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)

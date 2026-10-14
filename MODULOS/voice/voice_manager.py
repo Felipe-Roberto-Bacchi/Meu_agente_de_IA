@@ -1,13 +1,14 @@
 import asyncio
 import edge_tts
-import pygame
+try:
+    import pygame
+except ImportError:
+    pygame = None
 import os
 import uuid
 import random
 import pyttsx3
 from MODULOS.system.comunicacao_visual import atualizar_jarvis
-from MODULOS.voice.qwen_tts_module import gerar_audio_qwen, init_qwen_tts
-
 STATUS_FALANDO = False
 fila_fala = asyncio.PriorityQueue()
 
@@ -16,7 +17,7 @@ _pygame_inited = False
 
 def init_pygame_safe():
     global _pygame_inited
-    if not _pygame_inited:
+    if not _pygame_inited and pygame is not None:
         try:
             pygame.mixer.init()
             _pygame_inited = True
@@ -27,10 +28,12 @@ async def falar(bot_nome, texto, prioridade=1):
     if not texto: return
     await fila_fala.put((prioridade, bot_nome, texto))
 
-def _gerar_audio_qwen_sync(texto, arquivo_final):
-    # Lazy load here: if model is not loaded, init_qwen_tts will load it.
-    init_qwen_tts() 
-    return gerar_audio_qwen(texto, arquivo_final)
+KOKORO_VOICE = "pm_alex"
+
+def _gerar_audio_kokoro_sync(texto, arquivo_final, voz=KOKORO_VOICE):
+    from MODULOS.voice.kokoro_tts_module import gerar_audio_kokoro, init_kokoro_tts
+    init_kokoro_tts()
+    return gerar_audio_kokoro(texto, arquivo_final, voz=voz)
 
 def _gerar_fallback_pyttsx3(texto, arquivo_final):
     engine = pyttsx3.init()
@@ -45,7 +48,7 @@ def _gerar_fallback_pyttsx3(texto, arquivo_final):
 async def processador_de_fala():
     global STATUS_FALANDO
     VOICE = "pt-BR-FranciscaNeural"
-    print("[SISTEMA] Processador de voz iniciado (Lazy Loading ativado).")
+    print("[SISTEMA] Processador de voz iniciado (Kokoro TTS ativado).")
 
     while True:
         try:
@@ -53,19 +56,18 @@ async def processador_de_fala():
             STATUS_FALANDO = True
             
             arquivo_final = f"TEMP_AUDIO/fala_{uuid.uuid4().hex}.wav"
-            sucesso_qwen = False
+            sucesso_kokoro = False
             
-            # --- TENTATIVA 1: Qwen3-TTS Local ---
+            # --- TENTATIVA 1: Kokoro TTS Local (CPU) ---
             try:
-                # Executa sincronamente, mas em uma thread separada para não travar o loop de eventos
-                sucesso = await asyncio.to_thread(_gerar_audio_qwen_sync, texto, arquivo_final)
+                sucesso = await asyncio.to_thread(_gerar_audio_kokoro_sync, texto, arquivo_final, KOKORO_VOICE)
                 if sucesso and os.path.exists(arquivo_final):
-                    sucesso_qwen = True
-            except Exception as eq:
-                print(f"[VOZ] Problema ao rodar Qwen-TTS: {eq}")
+                    sucesso_kokoro = True
+            except Exception as ek:
+                print(f"[VOZ] Problema ao rodar Kokoro-TTS: {ek}")
 
-            # --- TENTATIVA 2: Fallbacks ANTIGOS ---
-            if not sucesso_qwen:
+            # --- TENTATIVA 2: Fallbacks (Edge-TTS e pyttsx3) ---
+            if not sucesso_kokoro:
                 arquivo_final = arquivo_final.replace('.wav', '.mp3')
                 try:
                     # 1. Tenta Voz Neural (Edge-TTS) - já é async nativo
@@ -82,7 +84,7 @@ async def processador_de_fala():
                         print(f"[VOZ] Fallback local falhou: {e2}")
 
             # 3. Reprodução
-            if os.path.exists(arquivo_final):
+            if os.path.exists(arquivo_final) and pygame is not None:
                 init_pygame_safe()
                 try:
                     pygame.mixer.music.load(arquivo_final)
@@ -100,14 +102,19 @@ async def processador_de_fala():
                         try: os.remove(arquivo_final)
                         except: pass
                 
-                await atualizar_jarvis(intensidade=0.1, texto="")
+                await atualizar_jarvis(cor_hex="#00ffff", intensidade=0.1, texto="", padrao="conversa")
             else:
                 print(f"[VOZ] Nenhuma saída de áudio para: '{texto}'")
                 await atualizar_jarvis(intensidade=0.1, texto=texto)
                 await asyncio.sleep(len(texto) * 0.1)
-                await atualizar_jarvis(intensidade=0.1, texto="")
+                await atualizar_jarvis(cor_hex="#00ffff", intensidade=0.1, texto="", padrao="conversa")
 
         except Exception as e:
             print(f"[ERRO CRÍTICO VOZ]: {e}")
         finally:
             STATUS_FALANDO = False
+            try:
+                from MODULOS.ear.recorder import limpar_pre_buffer
+                limpar_pre_buffer()
+            except Exception:
+                pass

@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "description": "Servidor MCP oficial para busca e extração de páginas web"
+    },
+    "web-search": {
+      "command": "python",
+      "args": ["-m", "MODULOS.skills.mcp_client", "--server"],
+      "description": "Servidor interno Jarvis de busca na internet e ferramentas em tempo real"
+    }
+  }
+}

@@ -8,6 +8,8 @@ from MODULOS.system.comunicacao_visual import atualizar_jarvis
 from MODULOS.voice import voice_manager
 
 try:
+    import warnings
+    warnings.filterwarnings("ignore", category=FutureWarning)
     import pynvml
     pynvml.nvmlInit()
     gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(0)
@@ -164,17 +166,28 @@ async def obter_status_hardware(foco=None):
 async def sentinela_hardware():
     while True:
         try:
-            status = await obter_status_hardware()
-            if status and "N/A" not in status:
-                temps = [float(t) for t in re.findall(r"(\d+\.\d+)", status)]
-                if any(t > 85.0 for t in temps):
-                    msg_alerta = f"ALERTA TÉRMICO: {max(temps)}°C!"
-                    await atualizar_jarvis(cor_hex="#ff0000", texto=msg_alerta, padrao="alerta")
-                    await voice_manager.falar("Sentinela", msg_alerta, prioridade=0)
-                    await asyncio.sleep(8)
-                    await atualizar_jarvis(cor_hex="#1a0033", texto="Aguardando...", padrao="dormindo")
+            temps_alerta = []
+            if _NVIDIA_OK and gpu_handle:
+                try:
+                    gpu_t = pynvml.nvmlDeviceGetTemperature(gpu_handle, pynvml.NVML_TEMPERATURE_GPU)
+                    if isinstance(gpu_t, (int, float)) and gpu_t > 85.0:
+                        temps_alerta.append(("GPU", gpu_t))
+                except Exception:
+                    pass
+            
+            cpu_t = await ler_temperatura_cpu_lhm()
+            if isinstance(cpu_t, (int, float)) and cpu_t > 85.0:
+                temps_alerta.append(("CPU", cpu_t))
+
+            if temps_alerta:
+                comp, val = max(temps_alerta, key=lambda x: x[1])
+                msg_alerta = f"ALERTA TÉRMICO: {comp} atingiu {val:.0f}°C!"
+                await atualizar_jarvis(cor_hex="#ff0000", texto=msg_alerta, padrao="alerta")
+                await voice_manager.falar("Sentinela", msg_alerta, prioridade=0)
+                await asyncio.sleep(6)
+                await atualizar_jarvis(cor_hex="#00ffff", texto="Sistemas normalizados", padrao="conversa")
         except asyncio.CancelledError:
             break
         except Exception as e:
-            print(f"[SENTINELA] Erro: {e}")
-        await asyncio.sleep(20)
+            pass
+        await asyncio.sleep(30)

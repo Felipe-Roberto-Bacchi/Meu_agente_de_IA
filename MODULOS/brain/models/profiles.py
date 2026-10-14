@@ -89,4 +89,5 @@ _DESCRICOES = {
     "VISAO":        "Análise de tela e imagens.",
     "TAREFA_LONGA": "Raciocínio complexo, planejamento e tarefas que exigem múltiplos passos.",
     "MEMORIA":      "Guardar, lembrar ou esquecer informações e fatos pessoais. Ativado por palavras como: guarda, salva, lembra, anota, grava, esquece, sabe que.",
+    "WEB_MCP":      "Pesquisas na internet, notícias em tempo real, previsão do tempo, cotações e ferramentas online via protocolo MCP.",
 }

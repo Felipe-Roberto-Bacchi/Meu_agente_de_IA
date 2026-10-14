@@ -14,6 +14,7 @@
     <button class="debug-btn" onclick="debugSetState('download')">Download</button>
     <button class="debug-btn" onclick="debugSetState('sharding')">Sharding</button>
     <button class="debug-btn" onclick="showGraphs(true)" style="border-color:#ff00ff; color:#ff00ff;">Gráficos</button>
+    <button class="debug-btn" id="btn-download-heavy" onclick="baixarModelosPesados()" style="border-color:#ffaa00; color:#ffaa00;">Baixar Modelos Pesados (Opcional - 32B/72B)</button>
 </div>
 
 <!-- DASHBOARD DE HARDWARE (HUD) -->
@@ -52,6 +53,18 @@
 <div id="ui-layer">
     <div class="label" id="status-label">Neural Core V5 Active</div>
     <div id="subtitles">INICIALIZANDO SISTEMAS...</div>
+</div>
+
+<!-- PAINEL DE CONTROLE MANUAL (PARAR GRAVAÇÃO / ENVIAR COMANDO) -->
+<div id="control-bar">
+    <button id="btn-stop-mic" class="hud-btn-stop" onclick="pararGravacaoMic()" title="Interrompe o microfone e envia o áudio imediatamente">
+        <span class="btn-icon">⏹️</span>
+        <span class="btn-text">PARAR E ENVIAR</span>
+    </button>
+    <div class="input-command-wrapper">
+        <input type="text" id="input-comando" placeholder="Ou digite um comando aqui..." onkeydown="if(event.key === 'Enter') enviarComandoManual()">
+        <button id="btn-send-cmd" onclick="enviarComandoManual()">ENVIAR</button>
+    </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

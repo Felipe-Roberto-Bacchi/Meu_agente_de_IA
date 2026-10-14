@@ -6,7 +6,7 @@
 body { background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; height: 100vh; width: 100vw; }
 
 #canvas-container { position: absolute; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; z-index: 1; }
-#ui-layer { position: absolute; bottom: 8%; width: 100%; text-align: center; pointer-events: none; z-index: 10; }
+#ui-layer { position: absolute; bottom: 12%; width: 100%; text-align: center; pointer-events: none; z-index: 10; }
 .label { text-transform: uppercase; letter-spacing: 5px; font-size: 14px; opacity: 0.5; transition: color 1.2s ease, text-shadow 1.2s ease; }
 #subtitles { font-size: 26px; margin-top: 10px; font-weight: 300; font-style: italic; transition: color 1.2s ease, text-shadow 1.2s ease; }
 
@@ -98,3 +98,119 @@ body { background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; 
 }
 .nav-tab.active { color: #00ffff; border-bottom: 2px solid #00ffff; }
 .nav-tab:hover { color: #fff; }
+
+/* ═══════════════════════════════════════════════════════
+   PAINEL DE CONTROLE MANUAL (HUD CONTROL DOCK)
+   ═══════════════════════════════════════════════════════ */
+#control-bar {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(10, 16, 26, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 7px 14px;
+    border-radius: 40px;
+    border: 1px solid rgba(0, 255, 255, 0.25);
+    box-shadow: 0 4px 25px rgba(0, 255, 255, 0.12), inset 0 0 15px rgba(0, 255, 255, 0.05);
+    transition: all 0.3s ease;
+}
+
+#control-bar:hover {
+    border-color: rgba(0, 255, 255, 0.45);
+    box-shadow: 0 6px 30px rgba(0, 255, 255, 0.22);
+}
+
+.hud-btn-stop {
+    background: linear-gradient(135deg, rgba(255, 45, 85, 0.25), rgba(255, 0, 60, 0.4));
+    border: 1px solid #ff0055;
+    color: #ffffff;
+    padding: 9px 18px;
+    border-radius: 30px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 0 12px rgba(255, 0, 85, 0.35);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    outline: none;
+    text-transform: uppercase;
+}
+
+.hud-btn-stop:hover {
+    background: #ff0055;
+    color: #ffffff;
+    box-shadow: 0 0 25px rgba(255, 0, 85, 0.8);
+    transform: scale(1.03);
+}
+
+.hud-btn-stop:active, .hud-btn-stop.btn-active {
+    transform: scale(0.96);
+    background: #cc0044;
+}
+
+.btn-icon {
+    font-size: 13px;
+    filter: drop-shadow(0 0 4px rgba(255, 0, 85, 0.6));
+}
+
+.input-command-wrapper {
+    display: flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.65);
+    border: 1px solid rgba(0, 255, 255, 0.2);
+    border-radius: 25px;
+    overflow: hidden;
+    padding-left: 14px;
+    transition: border-color 0.25s ease;
+}
+
+.input-command-wrapper:focus-within {
+    border-color: #00ffff;
+    box-shadow: 0 0 12px rgba(0, 255, 255, 0.3);
+}
+
+#input-comando {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #00ffff;
+    font-size: 13px;
+    width: 280px;
+    font-family: inherit;
+    padding: 8px 0;
+}
+
+#input-comando::placeholder {
+    color: rgba(0, 255, 255, 0.35);
+    font-style: italic;
+    font-size: 12px;
+}
+
+#btn-send-cmd {
+    background: rgba(0, 255, 255, 0.12);
+    border: none;
+    border-left: 1px solid rgba(0, 255, 255, 0.2);
+    color: #00ffff;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 1px;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-transform: uppercase;
+}
+
+#btn-send-cmd:hover {
+    background: #00ffff;
+    color: #000000;
+    box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+}

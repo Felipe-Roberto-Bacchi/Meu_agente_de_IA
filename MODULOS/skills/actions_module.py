@@ -2,8 +2,15 @@ import os
 import json
 import subprocess
 import ollama
-from win32com.client import Dispatch
-from rapidfuzz import process
+try:
+    from win32com.client import Dispatch
+except ImportError:
+    Dispatch = None
+
+try:
+    from rapidfuzz import process
+except ImportError:
+    process = None
 
 CACHE_FILE = "DADOS/apps_cache.json"
 PROGRAMAS_INSTALADOS = {}
@@ -11,7 +18,7 @@ PROGRAMAS_INSTALADOS = {}
 # --- 1. DEFINIÇÃO DAS FUNÇÕES (O Python guarda na memória) ---
 
 def escanear_e_salvar():
-    print("🔍 Jarvis limpando e localizando executáveis reais...")
+    print("[ACTIONS] Jarvis localizando executaveis no sistema...")
     
     # Palavras que indicam que o arquivo NÃO é um programa principal
     blacklist = [
@@ -80,15 +87,15 @@ def executar_comando(alvo):
     if "não existe" in alvo.lower() or "não encontrado" in alvo.lower():
         return "Não consegui identificar o programa, senhor."
 
-    match = process.extractOne(alvo, nomes, score_cutoff=90) 
+    match = process.extractOne(alvo, nomes, score_cutoff=90) if process else None
 
     if match:
         nome_final = match[0]
-        print(f"🎯 Match direto encontrado: {nome_final}")
+        print(f"[ACTIONS] Match direto encontrado: {nome_final}")
     else:
         nome_final = next((n for n in nomes if alvo.lower() in n.lower()), None)
         if not nome_final:
-            print(f"🤔 '{alvo}' não é óbvio. Consultando Llama...")
+            print(f"[ACTIONS] '{alvo}' não é óbvio. Consultando Llama...")
             nome_final = perguntar_ao_llama_sobre_programa(alvo, nomes)
 
     if nome_final and nome_final in PROGRAMAS_INSTALADOS:

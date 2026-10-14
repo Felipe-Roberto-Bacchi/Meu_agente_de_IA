@@ -1,0 +1,45 @@
+# ═══════════════════════════════════════════════════════
+# DEPENDÊNCIAS DO ASSISTENTE JARVIS
+# ═══════════════════════════════════════════════════════
+
+# Framework Web e Servidor de Interface
+fastapi>=0.115.0
+uvicorn>=0.34.0
+pydantic>=2.10.0
+httpx>=0.28.0
+aiohttp>=3.11.0
+
+# IA, Modelos Neurais e LLMs
+ollama>=0.4.0
+huggingface_hub>=0.28.0
+
+# Protocolo MCP (Model Context Protocol) & Ferramentas Online
+mcp>=1.3.0
+duckduckgo-search>=7.3.0
+beautifulsoup4>=4.13.0
+
+# Memória Vetorial e Embeddings (ChromaDB + SentenceTransformers)
+chromadb>=0.6.0
+sentence-transformers>=3.4.0
+tf-keras>=2.18.0
+
+# Áudio, Reconhecimento e Fala (STT / TTS)
+sounddevice>=0.5.0
+scipy>=1.15.0
+numpy>=2.0.0
+pygame>=2.6.0
+faster-whisper>=1.1.0
+kokoro>=0.3.4
+soundfile>=0.13.0
+edge-tts>=6.1.19
+pyttsx3>=2.98
+
+# Visão, Sistema e Automação
+psutil>=6.1.0
+nvidia-ml-py>=12.560.30
+rapidfuzz>=3.11.0
+pillow>=11.1.0
+PyAutoGUI>=0.9.54
+colorlog>=6.9.0
+yfinance>=0.2.50
+

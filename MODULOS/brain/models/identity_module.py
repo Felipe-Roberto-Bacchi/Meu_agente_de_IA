@@ -1,6 +1,11 @@
 import platform
 import psutil
-import pynvml
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+try:
+    import pynvml
+except ImportError:
+    pynvml = None
 import json
 import os
 import subprocess

@@ -12,7 +12,7 @@ import os
 # Configurações
 ARQUIVO_SAIDA = "CONTEXTO_JARVIS.md"
 PASTAS_IGNORAR = {'.git', '__pycache__', 'monitor', 'TEMP_AUDIO', 'DADOS'} # Pastas pesadas/binárias
-EXTENSOES_PERMITIDAS = {'.py', '.json', '.yaml', '.html', '.css'} # Só o que é código/texto
+EXTENSOES_PERMITIDAS = {'.py', '.json', '.yaml', '.html', '.css', '.js'} # Só o que é código/texto
 
 def empacotar_projeto():
     with open(ARQUIVO_SAIDA, 'w', encoding='utf-8') as f_out:
@@ -54,6 +54,10 @@ if __name__ == "__main__":
 
 ```python
 import os
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+
 import subprocess
 import time
 import asyncio
@@ -73,7 +77,6 @@ from MODULOS.brain.selector import selector as brain_selector
 from MODULOS import ear
 from MODULOS import brain
 
-os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 CONFIG_FILE = "DADOS/config_paths.json"
 
 _executor = ThreadPoolExecutor(max_workers=1)
@@ -88,6 +91,8 @@ async def loop_principal():
     
     # Inicia o processador de voz em background
     asyncio.create_task(voice_manager.processador_de_fala())
+    # Inicia o monitoramento térmico em background
+    asyncio.create_task(hardware_module.sentinela_hardware())
     
     # Saudação inicial baseada no horário
     hora = time.localtime().tm_hour
@@ -158,7 +163,7 @@ if __name__ == "__main__":
             # Fluxo de Primeiro Acesso (Instalador)
             python_exe = sys.executable
             # Usamos cmd /k para garantir que a janela fique aberta se houver erro de sistema/importação
-            subprocess.Popen(["cmd", "/k", python_exe, "-m", "MODULOS.interface_server"], creationflags=subprocess.CREATE_NEW_CONSOLE)
+            subprocess.Popen(["cmd", "/k", python_exe, "-m", "MODULOS.system.interface_server"], creationflags=subprocess.CREATE_NEW_CONSOLE)
             time.sleep(2)
             webbrowser.open("http://localhost:8000")
             
@@ -175,20 +180,20 @@ if __name__ == "__main__":
         # Fluxo Normal (Já configurado)
         
         # 1. Inicia o servidor de interface (Apenas uma vez)
-        subprocess.Popen(["cmd", "/k", sys.executable, "-m", "MODULOS.interface_server"], creationflags=subprocess.CREATE_NEW_CONSOLE)
+        subprocess.Popen(["cmd", "/k", sys.executable, "-m", "MODULOS.system.interface_server"], creationflags=subprocess.CREATE_NEW_CONSOLE)
         time.sleep(2)
         webbrowser.open("http://localhost:8000")
 
-        # 2. VERIFICAÇÃO DE INTEGRIDADE: Se deletou modelos ou shards, inicia recuperação
-        print("\n[MOCK/TESTE] Verificação de integridade e download de modelos PESADOS pulada.")
-        # if asyncio.run(verificar_modelos_faltantes(config)):
-        #     log.warning("Núcleos neurais ou shards incompletos. Iniciando recuperação...")
-        #     asyncio.run(gerenciar_downloads_iniciais(config))
-        #     log.info("Integridade restaurada. Reiniciando fluxo principal...")
+        # 2. VERIFICAÇÃO DE INTEGRIDADE: Se faltar modelo leve, recupera apenas os leves
+        if asyncio.run(verificar_modelos_faltantes(config)):
+            log.warning("Núcleos neurais incompletos. Iniciando recuperação...")
+            asyncio.run(gerenciar_downloads_iniciais(config, incluir_pesados=False))
+            log.info("Integridade restaurada. Reiniciando fluxo principal...")
 
         brain_selector.calibrar_e_salvar()
         memory_long.inicializar_banco()
         ear.inicializar_whisper()
+        ear.calibrar_ruido(duracao=2)
 
         asyncio.run(loop_principal())
         
@@ -830,7 +835,7 @@ def simular():
 
     # 1. Inicia o servidor
     print("[1/4] Iniciando servidor de interface...")
-    proc = subprocess.Popen([sys.executable, "-m", "MODULOS.interface_server"], 
+    proc = subprocess.Popen([sys.executable, "-m", "MODULOS.system.interface_server"], 
                             creationflags=subprocess.CREATE_NEW_CONSOLE)
     time.sleep(3) # Espera o servidor subir
     
@@ -896,32 +901,345 @@ if __name__ == "__main__":
 
 
 ==================================================
- ARQUIVO: .\test_imports.py
+ ARQUIVO: .\INTERFACE\app.js
 ==================================================
 
-```python
-import importlib
-import os
+```text
+window.setupIniciadoManualmente = false;
 
-root_dir = r"c:\projeto ia\teste 2\Meu-agente-IA-main"
-modulos_dir = os.path.join(root_dir, "MODULOS")
+// EXPOSE GLOBALS EARLY
+window.showGraphs = function(v) {
+    const p = document.getElementById('page-graphs');
+    if (p) {
+        p.style.display = v ? 'flex' : 'none';
+        if (typeof targetPattern !== 'undefined') targetPattern = v ? 'codigo' : 'dormindo';
+    }
+};
 
-failures = 0
-for dp, dnx, fnx in os.walk(modulos_dir):
-    for f in fnx:
-        if f.endswith('.py') and f != '__init__.py':
-            rel_path = os.path.relpath(os.path.join(dp, f), root_dir)
-            module_name = rel_path.replace('.py', '').replace(os.path.sep, '.')
-            try:
-                importlib.import_module(module_name)
-            except ModuleNotFoundError as e:
-                # ignore third party errors we don't have installed locally in this environment, but flag internal refactor errors
-                if 'MODULOS' in str(e):
-                    print(f"FAILED IMPORT in {module_name}: {e}")
-                    failures += 1
+window.debugSetState = (s) => {
+    window.setupIniciadoManualmente = true;
+    const overlay = document.getElementById('setup-overlay');
+    if (s === 'home') { if(overlay) overlay.remove(); if (typeof targetPattern !== 'undefined') targetPattern = 'dormindo'; }
+    else if (s === 'setup') { if(overlay) overlay.remove(); abrirPortalSetup(); }
+    else if (s === 'download') { if(!overlay) abrirPortalSetup(); mudarParaInterfaceDownload(); }
+    else if (s === 'sharding') { if(!overlay) abrirPortalSetup(); mudarParaInterfaceSharding(); }
+    else if (s === 'graphs') { window.showGraphs(true); }
+};
 
-if failures == 0:
-    print("ALL IMPORTS RESOLVED CORRECTLY!")
+// ═══════════════════════════════════════════════════════
+//  ESTADO GLOBAL
+// ═══════════════════════════════════════════════════════
+const subText = document.getElementById('subtitles');
+const label = document.getElementById('status-label');
+
+let targetColor = null; // Inicializado no conectarWS ou animate
+let targetIntensity = 0.1;
+let currentIntensity = 0.1;
+let corEstado = '#1a0033';
+let falando = false;
+let timerVolta = null;
+
+let currentPattern = 'dormindo';
+let targetPattern = 'dormindo';
+let patternBlend = 1.0;
+let frozenPattern = null;
+
+// Inicializa cores após Three.js carregar
+function initColors() {
+    if (typeof THREE !== 'undefined' && !targetColor) {
+        targetColor = new THREE.Color('#1a0033');
+    }
+}
+
+// ═══════════════════════════════════════════════════════
+//  PADRÕES DE MOVIMENTO (ORIGINAL SOUL GUARD)
+// ═══════════════════════════════════════════════════════
+function getPatternState(name, t, intensity) {
+    switch(name) {
+        case 'dormindo': return { rotX: 0.00008, rotY: 0.0003, rotZ: 0.00005, offsetX: 0, offsetY: 0, noiseSpeed: 0.15, noiseScale: 0.3 * intensity };
+        case 'ouvindo': return { rotX: 0.0004 + 0.0003 * Math.sin(t * 0.5), rotY: 0.002, rotZ: 0.0001, offsetX: 0.05 * Math.sin(t * 0.3), offsetY: 0.03 * Math.sin(t * 0.2), noiseSpeed: 0.3, noiseScale: 0.6 * intensity };
+        case 'conversa': return { rotX: 0.0002, rotY: 0.001, rotZ: 0.0001, offsetX: 0, offsetY: 0, noiseSpeed: 0.4, noiseScale: 2.0 * intensity };
+        case 'hardware': return { rotX: 0.0, rotY: 0.006, rotZ: 0.0, offsetX: 0, offsetY: 0, noiseSpeed: 0.2, noiseScale: 0.8 * intensity };
+        case 'app': return { rotX: 0.0001, rotY: 0.002, rotZ: 0.004, offsetX: 0, offsetY: 0, noiseSpeed: 0.5, noiseScale: 1.5 * intensity };
+        case 'memoria': return { rotX: 0.001, rotY: 0.001, rotZ: 0.001, offsetX: 0.12 * Math.sin(t * 0.8), offsetY: 0.12 * Math.cos(t * 0.8), noiseSpeed: 0.35, noiseScale: 1.2 * intensity };
+        case 'codigo': return { rotX: 0.003 * Math.sin(t * 0.4), rotY: 0.004, rotZ: 0.002 * Math.cos(t * 0.3), offsetX: 0, offsetY: 0, noiseSpeed: 0.6, noiseScale: 1.8 * intensity };
+        case 'tarefa': return { rotX: 0.0015, rotY: 0.003, rotZ: 0.001, offsetX: 0, offsetY: 0, noiseSpeed: 0.25, noiseScale: 1.0 * intensity };
+        case 'alerta': return { rotX: 0.002 * Math.sin(t * 8.0), rotY: 0.008, rotZ: 0.003 * Math.cos(t * 7.0), offsetX: 0.15 * Math.sin(t * 12.0), offsetY: 0.08 * Math.cos(t * 9.0), noiseSpeed: 1.2, noiseScale: 3.0 * intensity };
+        default: return { rotX: 0.0002, rotY: 0.001, rotZ: 0.0001, offsetX: 0, offsetY: 0, noiseSpeed: 0.4, noiseScale: 2.0 * intensity };
+    }
+}
+
+function lerpPattern(a, b, alpha) {
+    const l = (x, y, t) => x + (y - x) * t;
+    return {
+        rotX: l(a.rotX, b.rotX, alpha), rotY: l(a.rotY, b.rotY, alpha), rotZ: l(a.rotZ, b.rotZ, alpha),
+        offsetX: l(a.offsetX, b.offsetX, alpha), offsetY: l(a.offsetY, b.offsetY, alpha),
+        noiseSpeed: l(a.noiseSpeed, b.noiseSpeed, alpha), noiseScale: l(a.noiseScale, b.noiseScale, alpha),
+    };
+}
+
+function getBlendedPattern(t, intensity) {
+    const pB = getPatternState(targetPattern, t, intensity);
+    if (patternBlend >= 1.0) return pB;
+    const pA = frozenPattern || getPatternState(currentPattern, t, intensity);
+    return lerpPattern(pA, pB, patternBlend);
+}
+
+// ═══════════════════════════════════════════════════════
+//  WEBSOCKET E UI UPDATES
+// ═══════════════════════════════════════════════════════
+let socket;
+function conectarWS() {
+    socket = new WebSocket('ws://' + window.location.host + '/ws');
+    socket.onmessage = function(event) {
+        try {
+            const d = JSON.parse(event.data);
+            if (d.type === "hardware_update") {
+                atualizarGraficosHardware(d.hardware);
+                return;
+            }
+            if (d.type === "download_update") {
+                if (document.getElementById('donuts-container')) {
+                    atualizarProgressoVisual(d.download);
+                } else if (d.download.ativo && !window.setupIniciadoManualmente) {
+                    atualizarProgressoVisual(d.download);
+                }
+                return;
+            }
+            if (d.type === "sharding_update") {
+                if (d.sharding.ativo) {
+                    if (!document.getElementById('shard-msg')) {
+                        if (!document.getElementById('setup-overlay')) abrirPortalSetup();
+                        mudarParaInterfaceSharding();
+                    }
+                    atualizarShardingVisual(d.sharding);
+                } else if (document.getElementById('setup-overlay') && !window.setupIniciadoManualmente) {
+                    setTimeout(() => { const o = document.getElementById('setup-overlay'); if(o) o.remove(); }, 2000);
+                }
+                return;
+            }
+            if (d.cor) { 
+                corEstado = d.cor; 
+                initColors();
+                if(targetColor) targetColor.set(d.cor); 
+                atualizarCorUI(d.cor); 
+            }
+            if (d.texto !== undefined) subText.innerText = d.texto;
+            if (d.intensidade !== undefined) {
+                targetIntensity = d.intensidade;
+                if (d.intensidade > 0.15) {
+                    falando = true;
+                    if (timerVolta) clearTimeout(timerVolta);
+                } else if (falando) {
+                    falando = false;
+                    timerVolta = setTimeout(() => { targetColor.set(corEstado); atualizarCorUI(corEstado); }, 600);
+                }
+            }
+            if (d.padrao && d.padrao !== targetPattern) {
+                const snap = getBlendedPattern(Date.now() * 0.001, currentIntensity);
+                frozenPattern = { ...snap }; currentPattern = targetPattern; targetPattern = d.padrao; patternBlend = 0.0;
+            }
+        } catch(e) { console.error(e); }
+    };
+    socket.onclose = function() { setTimeout(conectarWS, 2000); };
+    socket.onerror = function() { socket.close(); };
+}
+
+function atualizarCorUI(hex) {
+    subText.style.color = hex; subText.style.textShadow = `0 0 15px ${hex}`;
+    label.style.color = hex; label.style.textShadow = `0 0 10px ${hex}`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  HARDWARE HUD
+// ═══════════════════════════════════════════════════════
+// (Função movida para o topo)
+
+const historyCpu = []; const historyGpu = []; const historyRam = [];
+function atualizarGraficosHardware(hw) {
+    const mc = document.getElementById('metric-cpu'); if(mc) mc.innerText = Math.round(hw.cpu_usage || 0);
+    const mg = document.getElementById('metric-gpu'); if(mg) mg.innerText = Math.round(hw.gpu_load || 0);
+    const mr = document.getElementById('metric-ram'); if(mr) mr.innerText = Math.round(hw.ram_usage || 0);
+
+    const tc = document.getElementById('cpu-temp'); if(tc && hw.cpu_temp !== "N/A") tc.innerText = `TEMP: ${hw.cpu_temp}°C`;
+    const gs = document.getElementById('gpu-stats'); 
+    if(gs && hw.gpu_temp !== "N/A") gs.innerText = `TEMP: ${hw.gpu_temp}°C | VRAM: ${hw.vram_used_gb || '--'} GB | PWR: ${hw.gpu_power || '--'}W`;
+
+    pushChartData('chart-cpu', historyCpu, hw.cpu_usage);
+    pushChartData('chart-gpu', historyGpu, hw.gpu_load || 0);
+    pushChartData('chart-ram', historyRam, hw.ram_usage);
+}
+
+function pushChartData(id, history, val) {
+    history.push(val); if (history.length > 40) history.shift();
+    const c = document.getElementById(id); if (c) c.innerHTML = history.map(v => `<div class="chart-bar" style="height: ${v}%"></div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  SETUP / DOWNLOAD / SHARDING (ORIGINAL UX)
+// ═══════════════════════════════════════════════════════
+async function verificarSetup() {
+    try {
+        const r = await fetch('/system/status'); const data = await r.json();
+        if (!data.configurado) abrirPortalSetup();
+        else if (data.download && data.download.ativo) { abrirPortalSetup(); mudarParaInterfaceDownload(); }
+    } catch(e) { setTimeout(verificarSetup, 2000); }
+}
+
+async function selecionarPasta(id) {
+    try { const r = await fetch('/system/pick_folder'); const d = await r.json(); if (d.path) document.getElementById(id).value = d.path; } catch(e) {}
+}
+
+window.baixarModelosPesados = async function() {
+    if (!confirm("Deseja iniciar o download dos modelos pesados (AirLLM 32B/72B)? Isso exigirá bastante espaço em disco e tempo.")) {
+        return;
+    }
+    const btn = document.getElementById('btn-download-heavy');
+    if (btn) btn.disabled = true;
+    try {
+        const r = await fetch('/system/download_heavy', { method: 'POST' });
+        const d = await r.json();
+        if (d.status === 'iniciado') {
+            abrirPortalSetup();
+            mudarParaInterfaceDownload();
+        } else {
+            alert(d.mensagem || "Status: " + d.status);
+        }
+    } catch(e) {
+        alert("Erro ao solicitar download dos modelos pesados: " + e);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+};
+
+async function abrirPortalSetup() {
+    if (document.getElementById('setup-overlay')) return;
+    let modelosHTML = "Carregando núcleos...";
+    try {
+        const r = await fetch('/system/proposed_models'); const d = await r.json(); const m = d.modelos;
+        modelosHTML = `<div style="font-size:11px; color:#555; margin-bottom:15px; text-align:left;"><b style="color:#00ffff">PERFIL:</b> ${d.perfil}<div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; margin-top:8px; border:1px solid rgba(0,255,255,0.05);">• Roteador: ${m.ROTEADOR[0]}<br>• Visão: ${m.VISAO[0]}<br>• Conversa: ${m.CONVERSA[0]}</div></div>`;
+    } catch(e) {}
+
+    const html = `<div id="setup-overlay"><div class="setup-box" id="setup-content"><h1 style="letter-spacing:10px; margin-bottom:10px; color:#00ffff; text-shadow:0 0 20px #00ffff; text-align:center;">JARVIS SETUP</h1><p style="color:#666; margin-bottom:30px; letter-spacing:2px; font-size:11px; text-align:center;">CONFIGURAÇÃO DE DIRETÓRIOS NEURAIS</p>${modelosHTML}<div class="setup-input-group"><label>SSD (Leves)</label><div class="setup-input-row"><input type="text" id="path-ssd" class="setup-input" placeholder="C:\\Jarvis\\Ollama"><button onclick="selecionarPasta('path-ssd')" class="setup-btn-sel">...</button></div></div><div class="setup-input-group"><label>HD (Altas)</label><div class="setup-input-row"><input type="text" id="path-hd" class="setup-input" placeholder="D:\\ModelosIA"><button onclick="selecionarPasta('path-hd')" class="setup-btn-sel">...</button></div></div><button onclick="confirmarSetup()" class="setup-btn-main">CONECTAR NÚCLEOS</button><button onclick="baixarModelosPesados()" class="setup-btn-main" style="margin-top:10px; border-color:#ffaa00; color:#ffaa00;">BAIXAR MODELOS PESADOS (OPCIONAL 32B/72B)</button></div></div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function confirmarSetup() {
+    const ssd = document.getElementById('path-ssd').value; const hd = document.getElementById('path-hd').value;
+    if(!ssd || !hd) return alert("Senhor, indique os caminhos.");
+    try { const r = await fetch('/system/setup', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ssd_path: ssd, hd_path: hd }) }); if((await r.json()).status === "success") mudarParaInterfaceDownload(); } catch(e) { alert("Erro."); }
+}
+
+function mudarParaInterfaceDownload() {
+    const box = document.getElementById('setup-content'); if (!box) return;
+    box.innerHTML = `<h1 style="letter-spacing:10px; margin-bottom:10px; color:#00ffff; text-shadow:0 0 20px #00ffff; text-align:center;">SINC NEURAL</h1><p id="dl-msg" style="color:#666; margin-bottom:30px; letter-spacing:2px; font-size:11px; text-align:center;">TRANSFERINDO PACOTES...</p><div id="donuts-container"></div><div class="progress-global"><div id="dl-bar-global" class="progress-bar"></div></div><div style="display:flex; justify-content:space-between; margin-top:8px; font-size:10px; color:#00ffff;"><span>PROGRESSO</span><span id="dl-pct-total">0%</span></div>`;
+    donutsInstanciados = false;
+}
+
+function mudarParaInterfaceSharding() {
+    const box = document.getElementById('setup-content'); if (!box) return;
+    box.innerHTML = `<h1 style="letter-spacing:10px; margin-bottom:10px; color:#ff00ff; text-shadow:0 0 20px #ff00ff; text-align:center;">FATIAMENTO</h1><p id="shard-msg" style="color:#666; margin-bottom:30px; letter-spacing:2px; font-size:11px; text-align:center;">REORGANIZANDO CAMADAS NEURAIS...</p><div id="sharding-visual"></div><div class="progress-global"><div id="shard-bar" class="progress-bar" style="background:#ff00ff;"></div></div><div style="display:flex; justify-content:space-between; margin-top:8px; font-size:10px; color:#ff00ff;"><span>SHARDS</span><span id="shard-pct">0%</span></div>`;
+}
+
+let donutsInstanciados = false; const coresDonuts = ["#00ffff", "#ff00ff", "#00ff00", "#ffff00", "#ff8800", "#9d00ff", "#00ff88"];
+function atualizarProgressoVisual(stat) {
+    if (!stat || !stat.ativo) return;
+    if (!document.getElementById('donuts-container')) { abrirPortalSetup(); mudarParaInterfaceDownload(); }
+    const bar = document.getElementById('dl-bar-global'); if(bar) bar.style.width = stat.progresso_total + "%";
+    const pct = document.getElementById('dl-pct-total'); if(pct) pct.innerText = stat.progresso_total + "%";
+    const msg = document.getElementById('dl-msg'); if(msg) msg.innerText = stat.mensagem.toUpperCase();
+    if (stat.modelos && Object.keys(stat.modelos).length > 0) {
+        const container = document.getElementById('donuts-container');
+        if (!donutsInstanciados) {
+            container.innerHTML = ""; let idx = 0;
+            for (const mid in stat.modelos) {
+                const cor = coresDonuts[idx % coresDonuts.length]; const short = mid.split('/').pop().split(':').shift();
+                container.innerHTML += `<div class="donut-item"><div style="position:relative; width:60px; height:60px;"><svg width="60" height="60" viewBox="0 0 80 80"><circle cx="40" cy="40" r="34" stroke="#111" stroke-width="8" fill="none" /><circle id="circle-${mid}" cx="40" cy="40" r="34" stroke="${cor}" stroke-width="8" fill="none" stroke-dasharray="213.6" stroke-dashoffset="213.6" style="transition:0.4s; filter:drop-shadow(0 0 3px ${cor});" /></svg><div id="pct-${mid}" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:10px; font-weight:bold; color:${cor};">0%</div></div><div class="donut-label">${short}</div></div>`;
+                idx++;
+            }
+            donutsInstanciados = true;
+        }
+        for (const mid in stat.modelos) {
+            const circle = document.getElementById(`circle-${mid}`);
+            if (circle) { circle.style.strokeDashoffset = 213.6 - (213.6 * stat.modelos[mid] / 100); document.getElementById(`pct-${mid}`).innerText = Math.round(stat.modelos[mid]) + "%"; }
+        }
+    }
+}
+
+function atualizarShardingVisual(stat) {
+    const bar = document.getElementById('shard-bar'); if(bar) bar.style.width = stat.progresso + "%";
+    const pct = document.getElementById('shard-pct'); if(pct) pct.innerText = Math.round(stat.progresso) + "%";
+    const msg = document.getElementById('shard-msg'); if(msg) msg.innerText = (stat.mensagem || "FATIANDO...").toUpperCase();
+    const visual = document.getElementById('sharding-visual');
+    if (visual) {
+        const target = Math.floor((stat.progresso / 100) * 20);
+        for (let i = visual.children.length; i < target; i++) {
+            const layer = document.createElement('div'); layer.style.width = (80 + Math.random() * 20) + "%"; layer.style.height = "4px"; layer.style.background = "#ff00ff"; layer.style.boxShadow = "0 0 10px #ff00ff"; layer.style.opacity = "0"; layer.style.transition = "0.5s"; visual.appendChild(layer);
+            setTimeout(() => layer.style.opacity = "1", 10);
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════
+//  THREE.JS Core (ORIGINAL)
+// ═══════════════════════════════════════════════════════
+const simplex = new SimplexNoise(); const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); renderer.setSize(innerWidth, innerHeight);
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+const geometry = new THREE.IcosahedronGeometry(2, 10); const originalPositions = geometry.attributes.position.array.slice();
+const pointsMat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.06, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false });
+const wireMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, wireframe: true, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false });
+function criarTexturaGlow() { const size = 128; const canvas = document.createElement('canvas'); canvas.width = canvas.height = size; const ctx = canvas.getContext('2d'); const grad = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2); grad.addColorStop(0, 'rgba(255,255,255,1)'); grad.addColorStop(0.3, 'rgba(255,255,255,0.4)'); grad.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = grad; ctx.fillRect(0, 0, size, size); return new THREE.CanvasTexture(canvas); }
+const glowMat = new THREE.SpriteMaterial({ map: criarTexturaGlow(), color: 0x00ffff, transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending });
+const points = new THREE.Points(geometry, pointsMat); const sphere = new THREE.Mesh(geometry, wireMat); const glow = new THREE.Sprite(glowMat); glow.scale.set(6, 6, 1);
+scene.add(points); scene.add(sphere); scene.add(glow); camera.position.z = 6;
+
+function animate() {
+    requestAnimationFrame(animate); 
+    const t = Date.now() * 0.001; 
+    initColors();
+    if (!targetColor) return; 
+
+    currentIntensity += (targetIntensity - currentIntensity) * 0.08; 
+    patternBlend = Math.min(1.0, patternBlend + 0.08); 
+    const p = getBlendedPattern(t, currentIntensity);
+
+    points.rotation.x += p.rotX; 
+    points.rotation.y += p.rotY; 
+    points.rotation.z += p.rotZ; 
+    sphere.rotation.copy(points.rotation);
+
+    points.position.set(p.offsetX, p.offsetY, 0); 
+    sphere.position.copy(points.position);
+
+    const pos = geometry.attributes.position.array;
+    for (let i = 0; i < pos.length; i += 3) {
+        const vX = originalPositions[i], vY = originalPositions[i+1], vZ = originalPositions[i+2];
+        const off = simplex.noise3D(vX + t * p.noiseSpeed, vY + t * p.noiseSpeed, vZ + t * p.noiseSpeed) * p.noiseScale; 
+        const len = Math.sqrt(vX*vX + vY*vY + vZ*vZ);
+        pos[i] = vX + (vX/len) * off; 
+        pos[i+1] = vY + (vY/len) * off; 
+        pos[i+2] = vZ + (vZ/len) * off;
+    }
+    geometry.attributes.position.needsUpdate = true;
+
+    if (targetColor) {
+        pointsMat.color.lerp(targetColor, 0.06); 
+        wireMat.color.copy(pointsMat.color); 
+        glowMat.color.copy(pointsMat.color);
+    }
+
+    const gs = 5 + (currentIntensity * 4); 
+    glow.scale.set(gs, gs, 1); 
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+animate(); conectarWS(); verificarSetup();
+
+// EXPOSE GLOBALS
+window.selecionarPasta = selecionarPasta; window.confirmarSetup = confirmarSetup;
+// debugSetState e showGraphs já movidos para o topo
 
 ```
 
@@ -947,6 +1265,7 @@ if failures == 0:
     <button class="debug-btn" onclick="debugSetState('download')">Download</button>
     <button class="debug-btn" onclick="debugSetState('sharding')">Sharding</button>
     <button class="debug-btn" onclick="showGraphs(true)" style="border-color:#ff00ff; color:#ff00ff;">Gráficos</button>
+    <button class="debug-btn" id="btn-download-heavy" onclick="baixarModelosPesados()" style="border-color:#ffaa00; color:#ffaa00;">Baixar Modelos Pesados (Opcional - 32B/72B)</button>
 </div>
 
 <!-- DASHBOARD DE HARDWARE (HUD) -->
@@ -1741,18 +2060,21 @@ def _inicializar_airllm(model_id: str):
     # --- ESTRATÉGIA DE PERFORMANCE MÁXIMA (HÍBRIDA) ---
     # Original (64GB+) fica no HD para não lotar o PC.
     # Fatias Shards (20GB) ficam no SSD para a IA falar RÁPIDO.
-    
-    # Sempre buscamos o modelo original no HD (D:) para economizar SSD
-    os.environ["HF_HOME"] = r"D:\ModelosIA"
+    from MODULOS.system.config import carregar_configuracao
+    cfg = carregar_configuracao()
+    hd_path = cfg.get("hd_path", "D:\\ModelosIA") if cfg else "D:\\ModelosIA"
+    ssd_path = cfg.get("ssd_path", os.path.expanduser("~/.cache/huggingface")) if cfg else os.path.expanduser("~/.cache/huggingface")
+
+    # Sempre buscamos o modelo original no HD para economizar SSD
+    os.environ["HF_HOME"] = hd_path
     
     if "72B" in model_id:
-        print(f"[AIRLLM] Modo 72B: Tudo no HD (D:\\ModelosIA) devido ao tamanho extremo.")
-        shards_path = None # Fica tudo no D:
+        print(f"[AIRLLM] Modo 72B: Tudo no HD ({hd_path}) devido ao tamanho extremo.")
+        shards_path = None # Fica tudo no HD
     else:
         # Para o modelo de Código (32B), queremos velocidade SSD nas fatias!
-        print(f"[AIRLLM] Modo Performance: Lendo original do HD (D:) e usando fatias no SSD (C:)")
-        # Pasta de shards no SSD (C:) do usuário
-        shards_path = r"C:\Users\felip\.cache\huggingface\jarvis_shards_32b"
+        print(f"[AIRLLM] Modo Performance: Lendo original do HD ({hd_path}) e usando fatias no SSD ({ssd_path})")
+        shards_path = os.path.join(ssd_path, "jarvis_shards_32b")
         if not os.path.exists(shards_path):
             os.makedirs(shards_path, exist_ok=True)
 
@@ -1785,10 +2107,10 @@ def _inicializar_airllm(model_id: str):
         return None
 
 
-async def gerar_resposta_airllm(model_id: str, prompt: str, system_prompt: str = "") -> str:
+def gerar_resposta_airllm(model_id: str, prompt: str, system_prompt: str = "") -> str:
     """
-    Função exposta para ser chamada pelo brain_module.py
-    Ao rodar, ele acorda o AirLLM (se ainda não estive acordado).
+    Função exposta síncrona para ser chamada com asyncio.to_thread(...).
+    Ao rodar, ele acorda o AirLLM (se ainda não estiver acordado).
     """
     modelo = _inicializar_airllm(model_id)
     if modelo is None:
@@ -1840,7 +2162,11 @@ async def gerar_resposta_airllm(model_id: str, prompt: str, system_prompt: str =
 ==================================================
 
 ```python
-from rapidfuzz import utils
+try:
+    from rapidfuzz import utils
+    _limpar_texto = utils.default_process
+except ImportError:
+    _limpar_texto = lambda s: s.lower().strip()
 
 # Dicionário focado em corrigir o que o Whisper ouve errado
 DICIONARIO_CORRECAO = {
@@ -1851,14 +2177,19 @@ DICIONARIO_CORRECAO = {
     "rano": "ram", "pirâmide": "hardware"
 }
 
-def processar_intencao(comando_voz):
-    # 1. Normalização e Correção Fonética
+def normalizar_fonetica(comando_voz: str) -> str:
+    """Aplica correção fonética para termos que o Whisper frequentemente transcreve errado."""
+    if not comando_voz:
+        return ""
     palavras = comando_voz.lower().split()
     for i, p in enumerate(palavras):
         if p in DICIONARIO_CORRECAO: 
             palavras[i] = DICIONARIO_CORRECAO[p]
-    
-    texto = " ".join(palavras)
+    return " ".join(palavras)
+
+def processar_intencao(comando_voz):
+    # 1. Normalização e Correção Fonética
+    texto = normalizar_fonetica(comando_voz)
 
     # --- FILTRO DE SEGURANÇA: MEMÓRIA DE FATO ---
     # Se o senhor estiver mandando "guardar", "lembrar" ou "esquecer", 
@@ -1885,7 +2216,7 @@ def processar_intencao(comando_voz):
     # 3. Gatilhos de ABRIR_APP
     gatilhos_abrir = ["abrir", "iniciar", "executar", "lançar", "abre", "start"]
     if any(x in texto for x in gatilhos_abrir):
-        alvo = utils.default_process(texto)
+        alvo = _limpar_texto(texto)
         termos_limpeza = gatilhos_abrir + ["o ", "a ", "por favor", "meu", "minha"]
         for v in termos_limpeza:
             alvo = alvo.replace(v, "")
@@ -1983,6 +2314,13 @@ async def processar_comando(texto_bruto: str):
         loop = asyncio.get_running_loop()
         resposta = await loop.run_in_executor(None, fii_monitor.obter_resumo_fiis)
 
+    elif categoria == "WEB_MCP":
+        cor      = "#0088ff"
+        padrao   = "tarefa"
+        await atualizar_jarvis(cor_hex=cor, texto="Conectando à rede / MCP...", padrao=padrao)
+        from MODULOS.skills import mcp_client
+        resposta = await mcp_client.executar_comandos_mcp_ou_web(texto_bruto)
+
     else:
         cor      = "#00ffff"
         padrao   = "conversa"
@@ -1998,6 +2336,7 @@ async def processar_comando(texto_bruto: str):
 ==================================================
 
 ```python
+import asyncio
 import ollama
 from MODULOS.brain.selector import selector as brain_selector
 from MODULOS.memory import memory_short
@@ -2005,9 +2344,54 @@ from MODULOS.memory import memory_long
 from MODULOS.brain import airllm_module
 from MODULOS.system.logger import log
 
+SYSTEM_PROMPT_BASE = (
+    "Você é o Jarvis, um assistente de inteligência artificial de elite, leal, eficiente, inteligente e elegante.\n"
+    "Responda ao senhor com respeito, objetividade, clareza e elegância em português do Brasil.\n"
+    "Suas respostas serão sintetizadas por voz, portanto evite formatações markdown excessivas, emojis exagerados ou tabelas complexas, mantendo fluidez natural."
+)
+
 async def gerar_resposta_conversa(texto: str, especialidade: str = "CONVERSA") -> str:
-    print(f"\n[MOCK/TESTE] Modelo de inteligência para '{especialidade}' DESATIVADO temporariamente.")
-    return f"Recebi seu comando: '{texto}'. O cérebro foi desativado temporariamente para testes do sistema de voz."
+    """
+    Gera resposta inteligente usando LLM local (Ollama) ou AirLLM,
+    enriquecendo o prompt com memória de longo prazo e contexto de curto prazo.
+    """
+    try:
+        # 1. Busca contexto semântico de longo prazo
+        contexto_longo = memory_long.montar_contexto_longo(texto)
+        system_prompt = SYSTEM_PROMPT_BASE
+        if contexto_longo:
+            system_prompt += f"\n\nContexto e memórias relevantes sobre o senhor:\n{contexto_longo}"
+
+        if especialidade == "CODIGO":
+            system_prompt += "\nVocê está atuando como especialista em programação e engenharia de software. Seja preciso e direto ao ponto."
+
+        # 2. Monta mensagens com histórico curto
+        mensagens = memory_short.obter_contexto(system_prompt=system_prompt)
+        mensagens.append({"role": "user", "content": texto})
+
+        # 3. Escolhe o melhor modelo para a especialidade
+        modelo, tipo = brain_selector.escolher_melhor_modelo(especialidade)
+        log.info(f"[CONVERSA] Especialidade: {especialidade} | Modelo: {modelo} ({tipo})")
+
+        # 4. Executa modelo
+        if tipo == "airllm":
+            resposta = await asyncio.to_thread(airllm_module.gerar_resposta_airllm, modelo, texto, system_prompt)
+        else:
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: ollama.chat(model=modelo, messages=mensagens)
+            )
+            resposta = response['message']['content'].strip()
+
+        # 5. Atualiza memória de curto prazo
+        memory_short.adicionar_mensagem("user", texto)
+        memory_short.adicionar_mensagem("assistant", resposta)
+
+        return resposta
+    except Exception as e:
+        log.error(f"[CONVERSA] Erro ao gerar resposta: {e}")
+        return "Perdoe-me, senhor. Ocorreu uma oscilação temporária em meus circuitos neurais ao processar sua solicitação."
 
 ```
 
@@ -2037,11 +2421,7 @@ async def _executar_em_background(tarefa: str):
         )
         
         if tipo == "airllm":
-            loop = asyncio.get_running_loop()
-            resultado = await loop.run_in_executor(
-                None,
-                lambda: asyncio.run(airllm_module.gerar_resposta_airllm(modelo, prompt, ""))
-            )
+            resultado = await asyncio.to_thread(airllm_module.gerar_resposta_airllm, modelo, prompt, "")
         else:
             loop = asyncio.get_running_loop()
             response = await loop.run_in_executor(
@@ -2071,6 +2451,7 @@ async def _executar_em_background(tarefa: str):
 ```python
 import json
 import re
+import asyncio
 import ollama
 from MODULOS.brain.selector import selector as brain_selector
 from MODULOS.system.logger import log
@@ -2080,10 +2461,15 @@ def carregar_descricoes_especialistas():
         with open('DADOS/model_registry.json', 'r', encoding='utf-8') as f:
             dados = json.load(f)
             especialistas = dados.get("especialistas", {})
-            return "\n".join([f"- {k}: {v['descricao']}" for k, v in especialistas.items()])
-    except Exception as e:
-        log.error(f"[REGISTRY]: {e}")
-        return "HARDWARE, ABRIR_APP, CONVERSA, CODIGO, MEMORIA"
+            if especialistas:
+                return "\n".join([f"- {k}: {v.get('descricao', '')}" for k, v in especialistas.items()])
+    except Exception:
+        pass
+    try:
+        from MODULOS.brain.models.profiles import _DESCRICOES
+        return "\n".join([f"- {k}: {v}" for k, v in _DESCRICOES.items()])
+    except Exception:
+        return "HARDWARE, ABRIR_APP, CONVERSA, CODIGO, MEMORIA, WEB_MCP, TAREFA_LONGA, FINANCE, VISAO"
 
 def _extrair_json(texto: str) -> dict | None:
     if not texto or not texto.strip():
@@ -2108,13 +2494,23 @@ def _extrair_json(texto: str) -> dict | None:
             pass
     return None
 
-def _rota_por_keywords(texto: str) -> dict:
+def _rota_por_keywords(texto: str) -> dict | None:
     t = texto.lower()
 
     gatilhos_app = ["abrir", "abre", "iniciar", "executar", "lançar", "start", "abra"]
     gatilhos_hw  = ["temperatura", "cpu", "gpu", "ram", "vram", "verra", "vera", "hardware", "processador", "status", "placa de vídeo", "placa de video", "memória de vídeo", "usando a vram", "usando vram", "processamento", "uso do"]
-    gatilhos_cod = ["código", "script", "função", "bug", "erro no código", "programa em python"]
+    gatilhos_cod = ["código", "codigo", "script", "função", "funcao", "bug", "erro no código", "programa em python", "escreva um código", "crie uma função"]
     gatilhos_fii = ["fii", "investimento", "bolsa", "ação", "cotacao", "cotação", "fundo", "oportunidade de compra", "ganhar dinheiro", "mxrf11", "xpml11", "vghf11", "btlg11"]
+    
+    gatilhos_web = [
+        "pesquise na internet", "pesquise na web", "pesquisa na internet", "pesquisa na web",
+        "pesquise", "pesquisa", "busque na web", "busque na internet", "busca na internet",
+        "busca na web", "busque", "notícias sobre", "noticias sobre", "notícia", "noticia",
+        "previsão do tempo", "previsao do tempo", "clima em", "clima hoje", "tempo em",
+        "temperatura em", "o que aconteceu hoje", "qual o preço atual", "preço atual de",
+        "preco atual de", "cotação do dólar", "cotacao do dolar", "preço do bitcoin",
+        "preco do bitcoin", "pesquisar na internet", "procure na web", "procure na internet"
+    ]
 
     gatilhos_salvar = ["guarda", "salva", "anota", "grava", "recorda",
                        "não esqueça", "memoriza", "sabe que"]
@@ -2123,6 +2519,7 @@ def _rota_por_keywords(texto: str) -> dict:
                            "quem sou", "como me chamo"]
     gatilhos_esquecer_mem = ["esquece", "apaga", "deleta"]
 
+    # 1. Abertura de apps
     for g in gatilhos_app:
         if g in t:
             alvo = t
@@ -2130,6 +2527,7 @@ def _rota_por_keywords(texto: str) -> dict:
                 alvo = alvo.replace(term, "")
             return {"categoria": "ABRIR_APP", "alvo": alvo.strip()}
 
+    # 2. Hardware
     if any(g in t for g in gatilhos_hw):
         foco = None
         if "cpu" in t or "processador" in t:          foco = "CPU"
@@ -2138,20 +2536,75 @@ def _rota_por_keywords(texto: str) -> dict:
         elif "ram" in t or "memória" in t:            foco = "RAM"
         return {"categoria": "HARDWARE", "alvo": foco}
 
+    # 3. Web & Ferramentas Online (MCP)
+    if any(g in t for g in gatilhos_web):
+        return {"categoria": "WEB_MCP", "alvo": texto}
+
+    # 4. Memória
     if any(g in t for g in gatilhos_salvar + gatilhos_buscar_mem + gatilhos_esquecer_mem):
         return {"categoria": "MEMORIA", "alvo": texto}
 
+    # 5. Código
     if any(g in t for g in gatilhos_cod):
         return {"categoria": "CODIGO", "alvo": texto}
 
+    # 6. Mercado Financeiro
     if any(g in t for g in gatilhos_fii):
         return {"categoria": "FINANCE", "alvo": texto}
 
-    return {"categoria": "CONVERSA", "alvo": None}
+    return None
 
 async def rotear_intencao(comando: str) -> dict:
-    print("\n[MOCK/TESTE] Roteador LLM desativado para evitar downloads. Usando roteamento básico por palavras-chave.")
-    return _rota_por_keywords(comando)
+    from MODULOS.brain.nlp_processor import normalizar_fonetica
+    comando_normalizado = normalizar_fonetica(comando)
+
+    # 1. Fast-Path por palavras-chave
+    rota_rapida = _rota_por_keywords(comando_normalizado)
+    if rota_rapida is not None:
+        return rota_rapida
+
+    # 2. Roteamento via LLM Roteador para dúvidas ou comandos genéricos
+    try:
+        modelo_roteador = "qwen2.5:1.5b"
+        try:
+            with open('DADOS/model_registry.json', 'r', encoding='utf-8') as f:
+                dados = json.load(f)
+                modelo_roteador = dados.get("modelo_roteador", "qwen2.5:1.5b")
+        except Exception:
+            pass
+
+        descricoes = carregar_descricoes_especialistas()
+        prompt_sistema = (
+            "Você é o roteador neural do Jarvis.\n"
+            "Analise a intenção do usuário e classifique-a em uma destas categorias:\n"
+            f"{descricoes}\n\n"
+            "Categorias válidas: HARDWARE, ABRIR_APP, CONVERSA, CODIGO, MEMORIA, WEB_MCP, TAREFA_LONGA, FINANCE, VISAO.\n"
+            "Retorne estritamente um JSON no formato:\n"
+            '{"categoria": "NOME_CATEGORIA", "alvo": "detalhes_ou_texto"}\n'
+            "Responda apenas com o JSON."
+        )
+
+        loop = asyncio.get_running_loop()
+        response = await loop.run_in_executor(
+            None,
+            lambda: ollama.chat(
+                model=modelo_roteador,
+                messages=[
+                    {"role": "system", "content": prompt_sistema},
+                    {"role": "user", "content": comando_normalizado}
+                ],
+                options={"temperature": 0.0}
+            )
+        )
+        conteudo = response['message']['content']
+        decisao = _extrair_json(conteudo)
+        if decisao and "categoria" in decisao:
+            cat = str(decisao["categoria"]).upper()
+            return {"categoria": cat, "alvo": decisao.get("alvo", comando)}
+    except Exception as e:
+        log.warning(f"[ROTEADOR] Consulta ao modelo roteador falhou: {e}. Usando rota padrão.")
+
+    return {"categoria": "CONVERSA", "alvo": None}
 
 ```
 
@@ -2231,7 +2684,12 @@ async def _processar_memoria(texto: str) -> str:
 ```python
 import platform
 import psutil
-import pynvml
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
+try:
+    import pynvml
+except ImportError:
+    pynvml = None
 import json
 import os
 import subprocess
@@ -2415,6 +2873,7 @@ _DESCRICOES = {
     "VISAO":        "Análise de tela e imagens.",
     "TAREFA_LONGA": "Raciocínio complexo, planejamento e tarefas que exigem múltiplos passos.",
     "MEMORIA":      "Guardar, lembrar ou esquecer informações e fatos pessoais. Ativado por palavras como: guarda, salva, lembra, anota, grava, esquece, sabe que.",
+    "WEB_MCP":      "Pesquisas na internet, notícias em tempo real, previsão do tempo, cotações e ferramentas online via protocolo MCP.",
 }
 
 ```
@@ -2440,6 +2899,8 @@ def _ler_identidade() -> dict:
 
 def _detectar_vram_psutil() -> float:
     try:
+        import warnings
+        warnings.filterwarnings("ignore", category=FutureWarning)
         import pynvml
         pynvml.nvmlInit()
         handle = pynvml.nvmlDeviceGetHandleByIndex(0)
@@ -2560,6 +3021,39 @@ def calibrar_e_salvar() -> dict:
     registry = atualizar_registry(hw, perfil)
     return registry
 
+import os
+from MODULOS.system.config import carregar_configuracao
+
+def _modelo_airllm_existe(repo_id: str) -> bool:
+    try:
+        config = carregar_configuracao()
+        hd_path = config.get("hd_path") if config else None
+        ssd_path = config.get("ssd_path") if config else None
+        
+        caminhos_a_testar = []
+        if hd_path:
+            caminhos_a_testar.append(os.path.join(hd_path, repo_id.split('/')[-1]))
+            caminhos_a_testar.append(os.path.join(hd_path, "hub", f"models--{repo_id.replace('/', '--')}"))
+        
+        hf_home = os.environ.get("HF_HOME")
+        if hf_home:
+            caminhos_a_testar.append(os.path.join(hf_home, "hub", f"models--{repo_id.replace('/', '--')}"))
+            
+        caminhos_a_testar.append(os.path.expanduser(f"~/.cache/huggingface/hub/models--{repo_id.replace('/', '--')}"))
+        
+        existe_base = any(os.path.exists(p) and (not os.path.isdir(p) or len(os.listdir(p)) > 0) for p in caminhos_a_testar)
+        if not existe_base:
+            return False
+            
+        if "Coder-32B" in repo_id:
+            shards_path = os.path.join(ssd_path, "jarvis_shards_32b") if ssd_path else os.path.expanduser("~/.cache/huggingface/jarvis_shards_32b")
+            if not os.path.exists(shards_path) or len(os.listdir(shards_path)) < 5:
+                return False
+                
+        return True
+    except Exception:
+        return False
+
 def escolher_melhor_modelo(especialidade: str) -> tuple[str, str]:
     try:
         with open(REGISTRY_FILE, "r", encoding="utf-8") as f:
@@ -2567,10 +3061,26 @@ def escolher_melhor_modelo(especialidade: str) -> tuple[str, str]:
         esp = registry.get("especialistas", {}).get(especialidade, {})
         tipo = esp.get("tipo", "llm")
         if tipo == "airllm":
-            return esp.get("repo_id", "Qwen/Qwen2.5-72B-Instruct"), "airllm"
+            repo_id = esp.get("repo_id", "Qwen/Qwen2.5-72B-Instruct")
+            if _modelo_airllm_existe(repo_id):
+                return repo_id, "airllm"
+            
+            # Fallback automático e transparente para modelo leve local
+            log.warning("[SELETOR] Modelo pesado ausente. Usando modelo leve local como fallback.")
+            perfil = registry.get("_perfil_detectado", "CPU_ONLY")
+            modelos_perfil = PERFIS.get(perfil, {}).get("modelos", {})
+            
+            if especialidade == "CODIGO":
+                return "qwen2.5-coder:1.5b", "llm"
+            else:
+                modelo_conversa = modelos_perfil.get("CONVERSA", ["llama3.2:3b"])[0]
+                return modelo_conversa, "llm"
         else:
             return esp.get("modelo_ollama", "llama3.2:3b"), "llm"
-    except Exception:
+    except Exception as e:
+        log.warning(f"[SELETOR] Erro ao selecionar modelo: {e}. Usando fallback.")
+        if especialidade == "CODIGO":
+            return "qwen2.5-coder:1.5b", "llm"
         return "llama3.2:3b", "llm"
 
 ```
@@ -2707,87 +3217,226 @@ import sounddevice as sd
 import numpy as np
 from scipy.io.wavfile import write
 from collections import deque
+import queue
+import threading
 import time
+import os
 from MODULOS.system.logger import log
 from MODULOS.voice import voice_manager
 
 FS               = 16000
-THRESHOLD_BARULHO = 0.05
+CHUNK_SIZE       = 1024
+THRESHOLD_BARULHO = 0.0025
 DEVICE_ID        = None
+TIMEOUT_ATIVO    = 60
+
+# Stream persistente com Pré-Buffer contínuo de 1.5s
+_audio_queue = queue.Queue(maxsize=300)
+_pre_buffer = deque(maxlen=int(FS / CHUNK_SIZE * 1.5))
+_stream = None
+_stream_lock = threading.Lock()
+
+def _audio_callback(indata, frames, time_info, status):
+    if status:
+        pass
+    chunk = indata.copy()
+    _pre_buffer.append(chunk)
+    try:
+        _audio_queue.put_nowait(chunk)
+    except queue.Full:
+        try:
+            _audio_queue.get_nowait()
+        except queue.Empty:
+            pass
+        _audio_queue.put_nowait(chunk)
 
 def selecionar_microfone():
     global DEVICE_ID
-    DEVICE_ID = None
     try:
+        devices = sd.query_devices()
+        candidato = None
+        # Prioriza driver DirectSound (hostapi 1 no Windows) que tem 10x mais ganho e menor latência que MME
+        for idx, d in enumerate(devices):
+            if d['max_input_channels'] > 0:
+                name = d['name'].lower()
+                if 'steam' in name or 'mixagem' in name:
+                    continue
+                if d.get('hostapi') == 1 and ('realtek' in name or 'microf' in name):
+                    candidato = idx
+                    break
+
+        if candidato is not None:
+            DEVICE_ID = candidato
+            log.info(f"[EAR] Microfone de alta precisão selecionado (DirectSound): [{DEVICE_ID}] {devices[DEVICE_ID]['name']}")
+            return DEVICE_ID
+
+        # Fallback para dispositivo padrão
         info = sd.query_devices(kind='input')
-        log.info(f"Microfone: [{info['index']}] {info['name']}")
+        DEVICE_ID = info.get('index', None)
+        log.info(f"[EAR] Microfone padrão: [{DEVICE_ID}] {info.get('name')}")
     except Exception as e:
-        log.warning(f"Usando dispositivo padrão do sistema ({e})")
+        DEVICE_ID = None
+        log.warning(f"[EAR] Usando dispositivo padrão do sistema ({e})")
+    return DEVICE_ID
 
-def calibrar_ruido(duracao=3):
+def garantir_stream():
+    """Garante que o stream contínuo do microfone esteja ativo (latência zero)."""
+    global _stream, DEVICE_ID
+    with _stream_lock:
+        if _stream is not None and _stream.active:
+            return _stream
+
+        if _stream is not None:
+            try:
+                _stream.stop()
+                _stream.close()
+            except Exception:
+                pass
+            _stream = None
+
+        if DEVICE_ID is None:
+            selecionar_microfone()
+
+        try:
+            _stream = sd.InputStream(
+                samplerate=FS,
+                channels=1,
+                blocksize=CHUNK_SIZE,
+                device=DEVICE_ID,
+                callback=_audio_callback
+            )
+            _stream.start()
+            log.info("[EAR] Stream contínuo do microfone ativado com DirectSound (latência zero).")
+        except Exception as e:
+            log.error(f"[EAR] Falha ao iniciar stream contínuo do microfone: {e}")
+            _stream = None
+        return _stream
+
+def calibrar_ruido(duracao=2):
     global THRESHOLD_BARULHO
-    selecionar_microfone()
-    log.info("Calibrando microfone... Fique em silêncio.")
-    try:
-        gravacao = sd.rec(int(duracao * FS), samplerate=FS, channels=1, device=DEVICE_ID)
-        sd.wait()
-        rms = np.sqrt(np.mean(gravacao**2))
-        THRESHOLD_BARULHO = max(0.035, rms * 2.8)
-        if rms < 0.001:
-            log.warning("\nO volume do microfone está EXTREMAMENTE baixo ou mudo.")
-            log.warning("Verifique se o dispositivo de entrada padrão do Windows é o correto.\n")
-        log.info(f"Filtro definido em: {THRESHOLD_BARULHO:.5f}")
-    except Exception as e:
-        log.error(f"Erro na calibragem: {e}")
-        THRESHOLD_BARULHO = 0.04
-
-def gravar_fala(max_silencio_frames=22, arquivo="TEMP_AUDIO/input.wav") -> bool:
-    chunk_size       = 1024
-    pre_buffer       = deque(maxlen=int(FS / chunk_size * 1.5))
-    audio_buffer     = []
-    falando          = False
-    silencio_frames  = 0
+    garantir_stream()
+    log.info("[EAR] Calibrando microfone... Fique em silêncio por 2 segundos.")
     
-    max_chunks_sem_fala = int(3.0 * FS / chunk_size)
+    # Esvazia fila acumulada
+    while not _audio_queue.empty():
+        try:
+            _audio_queue.get_nowait()
+        except queue.Empty:
+            break
+
+    num_chunks = int(duracao * FS / CHUNK_SIZE)
+    chunks = []
+    fim = time.time() + duracao + 1.0
+
+    while len(chunks) < num_chunks and time.time() < fim:
+        try:
+            chunk = _audio_queue.get(timeout=0.2)
+            chunks.append(chunk)
+        except queue.Empty:
+            pass
+
+    if chunks:
+        dados = np.concatenate(chunks, axis=0)
+        rms = float(np.sqrt(np.mean(dados**2)))
+        
+        # Limiar adaptativo: 2.5x o ruído ambiente, mínimo 0.0018 e máximo 0.015
+        novo_threshold = max(0.0018, min(0.015, rms * 2.5))
+        THRESHOLD_BARULHO = novo_threshold
+
+        log.info(f"[EAR] Ruído ambiente médio (RMS): {rms:.5f} | Limiar de ativação definido em: {THRESHOLD_BARULHO:.5f}")
+    else:
+        THRESHOLD_BARULHO = 0.0025
+
+def gravar_fala(max_silencio_frames=35, arquivo="TEMP_AUDIO/input.wav", callback_feedback=None) -> bool:
+    global _pre_buffer
+    stream = garantir_stream()
+    if stream is None or not stream.active:
+        return False
+
+    # 1. Esvazia fila acumulada para ler áudio ao vivo
+    while not _audio_queue.empty():
+        try:
+            _audio_queue.get_nowait()
+        except queue.Empty:
+            break
+
+    audio_buffer = []
+    falando = False
+    silencio_frames = 0
     chunks_sem_fala = 0
+    max_chunks_sem_fala = int(6.0 * FS / CHUNK_SIZE)  # Aguarda até 6s pelo início da fala
 
-    try:
-        with sd.InputStream(samplerate=FS, channels=1, blocksize=chunk_size, device=DEVICE_ID) as stream:
-            while True:
-                if voice_manager.STATUS_FALANDO:
+    limiar_ativacao = THRESHOLD_BARULHO
+    limiar_sustentacao = max(0.0008, THRESHOLD_BARULHO * 0.5)
+
+    # 2. Se no pré-buffer recente já houver fala iniciada, aproveita
+    snapshot_pre = list(_pre_buffer)
+    for ch in snapshot_pre[-int(FS / CHUNK_SIZE * 0.8):]:
+        vol = float(np.linalg.norm(ch) / np.sqrt(len(ch)))
+        if vol > limiar_ativacao:
+            falando = True
+            break
+
+    if falando:
+        audio_buffer.extend(snapshot_pre)
+
+    while True:
+        if voice_manager.STATUS_FALANDO:
+            time.sleep(0.05)
+            return False
+
+        try:
+            data = _audio_queue.get(timeout=1.0)
+        except queue.Empty:
+            continue
+
+        volume = float(np.linalg.norm(data) / np.sqrt(len(data)))
+
+        if not falando:
+            if volume > limiar_ativacao:
+                falando = True
+                audio_buffer.extend(list(_pre_buffer))
+                audio_buffer.append(data.copy())
+                silencio_frames = 0
+                if callback_feedback:
+                    callback_feedback(True, volume, len(audio_buffer) * CHUNK_SIZE / FS)
+            else:
+                chunks_sem_fala += 1
+                if callback_feedback:
+                    callback_feedback(False, volume, 0.0)
+                if chunks_sem_fala > max_chunks_sem_fala:
                     return False
+        else:
+            audio_buffer.append(data.copy())
+            if callback_feedback:
+                callback_feedback(True, volume, len(audio_buffer) * CHUNK_SIZE / FS)
+            if volume > limiar_sustentacao:
+                silencio_frames = 0
+            else:
+                silencio_frames += 1
+                if silencio_frames > max_silencio_frames:
+                    break
 
-                data, _ = stream.read(chunk_size)
-                volume   = np.linalg.norm(data) / np.sqrt(len(data))
+    if audio_buffer:
+        audio_final = np.concatenate(audio_buffer, axis=0)
 
-                if volume > THRESHOLD_BARULHO:
-                    if not falando:
-                        log.debug(f"Som detectado! Vol: {volume:.4f}")
-                        falando = True
-                        audio_buffer.extend(list(pre_buffer))
-                    audio_buffer.append(data.copy())
-                    silencio_frames = 0
-                elif falando:
-                    audio_buffer.append(data.copy())
-                    silencio_frames += 1
-                    if silencio_frames > max_silencio_frames:
-                        break
-                else:
-                    pre_buffer.append(data.copy())
-                    chunks_sem_fala += 1
-                    if chunks_sem_fala > max_chunks_sem_fala:
-                        return False
+        # Ignora ruídos menores que 0.35s
+        duracao_segundos = len(audio_final) / FS
+        if duracao_segundos < 0.35:
+            return False
 
-        if audio_buffer:
-            audio_final = np.concatenate(audio_buffer, axis=0)
-            write(arquivo, FS, audio_final.astype(np.float32))
-            return True
-    except sd.PortAudioError as e:
-        log.error(f"Erro de áudio (PortAudio): {e}")
-        time.sleep(1)
-    except Exception as e:
-        log.error(f"Erro inesperado na gravação: {e}")
-        time.sleep(1)
+        # Normalização de ganho (AGC)
+        max_val = np.max(np.abs(audio_final))
+        if max_val > 0.001:
+            audio_final = (audio_final / max_val) * 0.85
+
+        dir_saida = os.path.dirname(os.path.abspath(arquivo))
+        if dir_saida:
+            os.makedirs(dir_saida, exist_ok=True)
+
+        write(arquivo, FS, audio_final.astype(np.float32))
+        return True
+
     return False
 
 ```
@@ -2842,19 +3491,23 @@ def resetar_timeout():
 ==================================================
 
 ```python
-from MODULOS.ear.models import whisper_model, carregar_whisper_small, _whisper_backend
+from MODULOS.ear import models
 from MODULOS.system.logger import log
 
-def transcrever_audio() -> str:
+def transcrever_audio(arquivo: str = "TEMP_AUDIO/input.wav") -> str:
     try:
-        if whisper_model is None:
-            carregar_whisper_small()
+        if models.whisper_model is None:
+            models.carregar_whisper_small()
 
-        if _whisper_backend == "openai_whisper_dml":
+        if models.whisper_model is None:
+            log.error("[EAR] Não foi possível carregar o modelo Whisper.")
+            return ""
+
+        if models._whisper_backend == "openai_whisper_dml":
             import whisper as openai_whisper
             result = openai_whisper.transcribe(
-                whisper_model,
-                "TEMP_AUDIO/input.wav",
+                models.whisper_model,
+                arquivo,
                 language="pt",
                 initial_prompt="Jarvis, comando de voz.",
                 fp16=False,
@@ -2863,11 +3516,11 @@ def transcrever_audio() -> str:
             )
             return (result.get("text") or "").strip()
 
-        segments, _ = whisper_model.transcribe(
-            "TEMP_AUDIO/input.wav",
+        segments, _ = models.whisper_model.transcribe(
+            arquivo,
             language="pt",
             initial_prompt="Jarvis, comando de voz.",
-            vad_filter=True,
+            vad_filter=False,
             beam_size=5,
             condition_on_previous_text=False
         )
@@ -2884,20 +3537,42 @@ def transcrever_audio() -> str:
 ==================================================
 
 ```python
-from rapidfuzz import fuzz
+import re
+try:
+    from rapidfuzz import fuzz
+except ImportError:
+    fuzz = None
 from MODULOS.voice import voice_manager
 from MODULOS.system.logger import log
 from MODULOS.ear.recorder import gravar_fala
 from MODULOS.ear.models import whisper_tiny
 
-WAKE_WORDS = ["jarvis", "jarbas", "javes", "travis", "garvis", "service", "yaves", "lajardis", "jardis", "jarves"]
+WAKE_WORDS = [
+    "jarvis", "jarbas", "javes", "travis", "garvis", "service", 
+    "yaves", "lajardis", "jardis", "jarves", "jarvys", "ia"
+]
 
 def _contem_wake_word(texto: str) -> bool:
-    palavras = texto.lower().split()
+    if not texto:
+        return False
+    texto_limpo = re.sub(r'[^\w\s]', ' ', texto.lower())
+    palavras = texto_limpo.split()
+    
+    # 1. Checagem direta por palavra ou similaridade fuzzy
     for palavra in palavras:
         for wake in WAKE_WORDS:
-            if fuzz.ratio(palavra, wake) >= 70:
+            if palavra == wake:
                 return True
+            if fuzz and fuzz.ratio(palavra, wake) >= 70:
+                return True
+            elif wake in palavra:
+                return True
+                
+    # 2. Checagem na frase completa
+    for wake in WAKE_WORDS:
+        if wake in texto_limpo:
+            return True
+            
     return False
 
 def _transcrever_tiny(arquivo="TEMP_AUDIO/wake.wav") -> str:
@@ -2910,7 +3585,7 @@ def _transcrever_tiny(arquivo="TEMP_AUDIO/wake.wav") -> str:
         )
         return " ".join([s.text for s in segments]).strip().lower()
     except Exception as e:
-        log.debug(f"Erro transcrição tiny: {e}")
+        log.debug(f"[WAKE] Erro transcrição tiny: {e}")
         return ""
 
 def escutar_wake_word() -> bool:
@@ -2919,10 +3594,11 @@ def escutar_wake_word() -> bool:
 
     if gravar_fala(max_silencio_frames=15, arquivo="TEMP_AUDIO/wake.wav"):
         texto = _transcrever_tiny("TEMP_AUDIO/wake.wav")
-        log.debug(f"WAKE - Ouvi: '{texto}'")
-        if _contem_wake_word(texto):
-            log.info(f"WAKE WORD Detectada! (Ouvi: '{texto}')")
-            return True
+        if texto:
+            log.info(f"[WAKE] Ouvi: '{texto}'")
+            if _contem_wake_word(texto):
+                log.info(f"[WAKE] Palavra-chave reconhecida! ('{texto}')")
+                return True
     return False
 
 ```
@@ -2942,42 +3618,37 @@ from MODULOS.ear.farewell import verificar_despedida
 from MODULOS.ear.transcriber import transcrever_audio
 from MODULOS.voice import voice_manager
 
-# Configurando as funções de callback no states
 from MODULOS.ear import states
-states._set_estado = lambda novo: states._set_estado_base(novo, carregar_cb=carregar_whisper_small, descarregar_cb=descarregar_whisper_small)
 
 # Wrapper para set_estado exportado para manter compatibilidade com código antigo
 def set_estado(novo_estado: str):
     states.set_estado(novo_estado, carregar_cb=carregar_whisper_small, descarregar_cb=descarregar_whisper_small)
 
 def inicializar_whisper():
-    inicializar_whisper_tiny()
+    carregar_whisper_small()
 
 def capturar_comando_dinamico() -> tuple[bool, str]:
-    estado_atual = get_estado()
+    # ── MODO WAKE WORD COMENTADO TEMPORARIAMENTE A PEDIDO DO USUÁRIO ──
+    # estado_atual = get_estado()
+    # if estado_atual == Estado.DORMINDO:
+    #     if escutar_wake_word():
+    #         set_estado(Estado.ATIVO)
+    #         resetar_timeout()
+    #         return False, Estado.ATIVO
+    #     return False, Estado.DORMINDO
 
-    if estado_atual == Estado.DORMINDO:
-        if escutar_wake_word():
-            set_estado(Estado.ATIVO)
-            resetar_timeout()
-            return False, Estado.ATIVO
-        return False, Estado.DORMINDO
-
-    # MODO ATIVO
-    from MODULOS.ear.recorder import TIMEOUT_ATIVO
-    if verificar_timeout(60): # timeout default de 60s
-        log.info("EAR Timeout de inatividade. Voltando a dormir.")
-        set_estado(Estado.DORMINDO)
-        return False, Estado.DORMINDO
+    # MODO ESCUTA DIRETA (SEMPRE ATIVO):
+    if get_estado() != Estado.ATIVO:
+        set_estado(Estado.ATIVO)
 
     if voice_manager.STATUS_FALANDO:
-        return False, estado_atual
+        return False, Estado.ATIVO
 
-    if gravar_fala(max_silencio_frames=35, arquivo="TEMP_AUDIO/input.wav"):
+    if gravar_fala(max_silencio_frames=28, arquivo="TEMP_AUDIO/input.wav"):
         resetar_timeout()
-        return True, estado_atual
+        return True, Estado.ATIVO
 
-    return False, estado_atual
+    return False, Estado.ATIVO
 
 ```
 
@@ -3000,8 +3671,12 @@ Busca semântica: "como me chamo" encontra "nome = Felipe" sem precisar
 da palavra exata — o ChromaDB entende o significado.
 """
 
-import chromadb
-from chromadb.utils import embedding_functions
+try:
+    import chromadb
+    from chromadb.utils import embedding_functions
+except ImportError:
+    chromadb = None
+    embedding_functions = None
 from datetime import datetime
 import uuid
 
@@ -3010,9 +3685,7 @@ import uuid
 # ─────────────────────────────────────────
 
 # Embedding local via sentence-transformers (roda na CPU, sem internet)
-_EMB = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name="all-MiniLM-L6-v2"
-)
+_EMB = None
 
 _client_fatos     = None
 _client_historico = None
@@ -3022,7 +3695,20 @@ _col_historico    = None
 
 def inicializar_banco():
     """Cria/abre os dois bancos ChromaDB. Chame uma vez no boot."""
-    global _client_fatos, _client_historico, _col_fatos, _col_historico
+    global _client_fatos, _client_historico, _col_fatos, _col_historico, _EMB, chromadb, embedding_functions
+
+    if chromadb is None:
+        try:
+            import chromadb
+            from chromadb.utils import embedding_functions
+        except ImportError:
+            print("[MEMÓRIA] ChromaDB não está instalado. Memória de longo prazo indisponível.")
+            return
+
+    if _EMB is None:
+        _EMB = embedding_functions.SentenceTransformerEmbeddingFunction(
+            model_name="all-MiniLM-L6-v2"
+        )
 
     # Banco de fatos permanentes
     _client_fatos = chromadb.PersistentClient(path="DADOS/chroma_fatos")
@@ -3060,6 +3746,8 @@ def salvar_memoria(chave: str, valor: str) -> str:
     O documento indexado é "chave: valor" para busca semântica rica.
     """
     _garantir_init()
+    if _col_fatos is None:
+        return "Banco de memória vetorial indisponível no momento."
     chave = chave.strip().lower()
     valor = valor.strip()
 
@@ -3085,7 +3773,7 @@ def buscar_memoria(consulta: str, n=3) -> str | None:
     Funciona mesmo com palavras diferentes (ex: 'nome' encontra 'como me chamo').
     """
     _garantir_init()
-    if _col_fatos.count() == 0:
+    if _col_fatos is None or _col_fatos.count() == 0:
         return None
 
     resultados = _col_fatos.query(
@@ -3107,6 +3795,8 @@ def buscar_memoria(consulta: str, n=3) -> str | None:
 def apagar_memoria(chave: str) -> str:
     """Remove um fato pelo nome da chave."""
     _garantir_init()
+    if _col_fatos is None:
+        return f"Não foi possível apagar '{chave}'."
     doc_id = f"fato_{chave.strip().lower().replace(' ', '_')}"
     try:
         _col_fatos.delete(ids=[doc_id])
@@ -3118,7 +3808,7 @@ def apagar_memoria(chave: str) -> str:
 def listar_fatos(n=20) -> list[dict]:
     """Retorna os N fatos mais recentes (para debug ou interface)."""
     _garantir_init()
-    if _col_fatos.count() == 0:
+    if _col_fatos is None or _col_fatos.count() == 0:
         return []
     resultado = _col_fatos.get(limit=n, include=["metadatas"])
     return resultado.get("metadatas", [])
@@ -3134,6 +3824,8 @@ def listar_fatos(n=20) -> list[dict]:
 def registrar_conversa_global(papel: str, mensagem: str):
     """Salva uma mensagem no histórico vetorial (sem limite de entradas)."""
     _garantir_init()
+    if _col_historico is None:
+        return
     if not mensagem or not mensagem.strip():
         return
 
@@ -3159,7 +3851,7 @@ def buscar_historico_relevante(consulta: str, n=3, max_meses=24) -> list[dict]:
     conversas antigas sobre assuntos que não aparecem todo mês.
     """
     _garantir_init()
-    if _col_historico.count() == 0:
+    if _col_historico is None or _col_historico.count() == 0:
         return []
 
     agora = datetime.now()
@@ -3214,6 +3906,8 @@ def montar_contexto_longo(consulta: str) -> str:
     Retorna string vazia se não houver nada relevante.
     """
     _garantir_init()
+    if _col_fatos is None and _col_historico is None:
+        return ""
     partes = []
 
     fatos = buscar_memoria(consulta, n=4)
@@ -3264,8 +3958,15 @@ import os
 import json
 import subprocess
 import ollama
-from win32com.client import Dispatch
-from rapidfuzz import process
+try:
+    from win32com.client import Dispatch
+except ImportError:
+    Dispatch = None
+
+try:
+    from rapidfuzz import process
+except ImportError:
+    process = None
 
 CACHE_FILE = "DADOS/apps_cache.json"
 PROGRAMAS_INSTALADOS = {}
@@ -3273,7 +3974,7 @@ PROGRAMAS_INSTALADOS = {}
 # --- 1. DEFINIÇÃO DAS FUNÇÕES (O Python guarda na memória) ---
 
 def escanear_e_salvar():
-    print("🔍 Jarvis limpando e localizando executáveis reais...")
+    print("[ACTIONS] Jarvis localizando executaveis no sistema...")
     
     # Palavras que indicam que o arquivo NÃO é um programa principal
     blacklist = [
@@ -3342,15 +4043,15 @@ def executar_comando(alvo):
     if "não existe" in alvo.lower() or "não encontrado" in alvo.lower():
         return "Não consegui identificar o programa, senhor."
 
-    match = process.extractOne(alvo, nomes, score_cutoff=90) 
+    match = process.extractOne(alvo, nomes, score_cutoff=90) if process else None
 
     if match:
         nome_final = match[0]
-        print(f"🎯 Match direto encontrado: {nome_final}")
+        print(f"[ACTIONS] Match direto encontrado: {nome_final}")
     else:
         nome_final = next((n for n in nomes if alvo.lower() in n.lower()), None)
         if not nome_final:
-            print(f"🤔 '{alvo}' não é óbvio. Consultando Llama...")
+            print(f"[ACTIONS] '{alvo}' não é óbvio. Consultando Llama...")
             nome_final = perguntar_ao_llama_sobre_programa(alvo, nomes)
 
     if nome_final and nome_final in PROGRAMAS_INSTALADOS:
@@ -3392,7 +4093,10 @@ inicializar_modulo()
 import time
 import re
 import requests
-import yfinance as yf
+try:
+    import yfinance as yf
+except ImportError:
+    yf = None
 from bs4 import BeautifulSoup
 from typing import List, Dict, Optional
 
@@ -3537,6 +4241,8 @@ from MODULOS.system.comunicacao_visual import atualizar_jarvis
 from MODULOS.voice import voice_manager
 
 try:
+    import warnings
+    warnings.filterwarnings("ignore", category=FutureWarning)
     import pynvml
     pynvml.nvmlInit()
     gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(0)
@@ -3712,6 +4418,397 @@ async def sentinela_hardware():
 
 
 ==================================================
+ ARQUIVO: .\MODULOS\skills\mcp_client.py
+==================================================
+
+```python
+"""
+mcp_client.py
+─────────────
+Cliente e Gerenciador de Ferramentas MCP (Model Context Protocol) para o Jarvis.
+Permite integração com ferramentas externas, servidores MCP oficiais e provedores
+de busca na web em tempo real (DuckDuckGo, extração web, clima/tempo), com fallback nativo.
+"""
+
+import os
+import json
+import asyncio
+import re
+import httpx
+from typing import Any
+from MODULOS.system.logger import log
+from MODULOS.brain.selector import selector as brain_selector
+
+MCP_CONFIG_FILE = "DADOS/mcp_servers.json"
+
+# ──────────────────────────────────────────────────────────
+#  FERRAMENTAS NATIVAS DE FALLBACK (OUT-OF-THE-BOX)
+# ──────────────────────────────────────────────────────────
+
+async def buscar_web(termo: str, max_resultados: int = 5) -> str:
+    """Busca informações na web usando DuckDuckGo com múltiplos fallbacks."""
+    termo = termo.strip()
+    log.info(f"[MCP/WEB] Executando busca por: '{termo}'")
+
+    # 1. Tenta biblioteca oficial duckduckgo_search se instalada
+    try:
+        from duckduckgo_search import DDGS
+        resultados = []
+        with DDGS() as ddgs:
+            for r in ddgs.text(termo, max_results=max_resultados):
+                titulo = r.get("title", "")
+                link = r.get("href", "")
+                snippet = r.get("body", "")
+                resultados.append(f"• Título: {titulo}\n  Link: {link}\n  Resumo: {snippet}")
+        if resultados:
+            return "\n\n".join(resultados)
+    except Exception as e:
+        log.debug(f"[MCP/WEB] ddgs library indisponível ou falhou: {e}. Usando fallback HTTP.")
+
+    # 2. Fallback HTTP direto via DuckDuckGo HTML
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
+            resp = await client.get(f"https://html.duckduckgo.com/html/?q={httpx.URL(termo)}", headers=headers)
+            if resp.status_code == 200:
+                texto_html = resp.text
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(texto_html, "html.parser")
+                resultados = []
+                for res in soup.find_all("div", class_="result", limit=max_resultados):
+                    tit_tag = res.find("a", class_="result__a")
+                    snip_tag = res.find("a", class_="result__snippet")
+                    if tit_tag:
+                        titulo = tit_tag.get_text(strip=True)
+                        link = tit_tag.get("href", "")
+                        snippet = snip_tag.get_text(strip=True) if snip_tag else ""
+                        resultados.append(f"• Título: {titulo}\n  Link: {link}\n  Resumo: {snippet}")
+                if resultados:
+                    return "\n\n".join(resultados)
+    except Exception as e:
+        log.error(f"[MCP/WEB] Falha no fallback DuckDuckGo HTML: {e}")
+
+    # 3. Fallback Wikipedia API em português
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            url_wiki = f"https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch={httpx.URL(termo)}&utf8=&format=json"
+            r = await client.get(url_wiki)
+            if r.status_code == 200:
+                dados = r.json()
+                itens = dados.get("query", {}).get("search", [])[:max_resultados]
+                if itens:
+                    limpos = []
+                    for item in itens:
+                        tit = item.get("title", "")
+                        snip = re.sub(r"<[^>]+>", "", item.get("snippet", ""))
+                        limpos.append(f"• {tit}: {snip}")
+                    return "\n".join(limpos)
+    except Exception as e:
+        log.error(f"[MCP/WEB] Falha no fallback Wikipedia: {e}")
+
+    return f"Não foi possível obter dados online atualizados sobre '{termo}' no momento."
+
+
+async def obter_previsao_tempo(cidade: str) -> str:
+    """Consulta informações meteorológicas em tempo real para uma cidade."""
+    log.info(f"[MCP/TEMPO] Buscando previsão para: {cidade}")
+    cidade_limpa = cidade.strip().replace(" ", "+")
+    try:
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            resp = await client.get(f"https://wttr.in/{cidade_limpa}?format=j1")
+            if resp.status_code == 200:
+                dados = resp.json()
+                atual = dados.get("current_condition", [{}])[0]
+                temp = atual.get("temp_C", "N/A")
+                sensacao = atual.get("FeelsLikeC", "N/A")
+                umidade = atual.get("humidity", "N/A")
+                vento = atual.get("windspeedKmph", "N/A")
+                desc = atual.get("lang_pt", [{}])[0].get("value") if "lang_pt" in atual else atual.get("weatherDesc", [{}])[0].get("value", "Tempo estável")
+                return (
+                    f"Condições meteorológicas para {cidade}:\n"
+                    f"- Condição: {desc}\n"
+                    f"- Temperatura atual: {temp}°C (sensação de {sensacao}°C)\n"
+                    f"- Umidade: {umidade}%\n"
+                    f"- Velocidade do vento: {vento} km/h"
+                )
+    except Exception as e:
+        log.error(f"[MCP/TEMPO] Erro ao obter previsão do tempo: {e}")
+
+    return f"Não foi possível consultar a previsão meteorológica para '{cidade}' no momento."
+
+
+async def obter_conteudo_url(url: str) -> str:
+    """Baixa e extrai o texto principal de uma URL."""
+    log.info(f"[MCP/FETCH] Lendo URL: {url}")
+    try:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) JarvisAssistant/1.0"}
+        async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
+            resp = await client.get(url, headers=headers)
+            if resp.status_code == 200:
+                from bs4 import BeautifulSoup
+                soup = BeautifulSoup(resp.text, "html.parser")
+                for s in soup(["script", "style", "nav", "footer"]):
+                    s.decompose()
+                texto = soup.get_text(separator=" ", strip=True)
+                return texto[:2500] + ("..." if len(texto) > 2500 else "")
+    except Exception as e:
+        log.error(f"[MCP/FETCH] Erro ao ler URL: {e}")
+    return f"Falha ao carregar conteúdo da página {url}."
+
+
+# Definição dos Schemas de ferramentas nativas no padrão Ollama
+FERRAMENTAS_NATIVAS_SCHEMA = [
+    {
+        "type": "function",
+        "function": {
+            "name": "buscar_web",
+            "description": "Busca informações atualizadas na internet sobre fatos, notícias, cotações, pessoas ou eventos.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "termo": {
+                        "type": "string",
+                        "description": "Termo ou frase chave para a pesquisa na web."
+                    }
+                },
+                "required": ["termo"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "obter_previsao_tempo",
+            "description": "Obtém a previsão do tempo atual e condições climáticas de uma cidade ou localidade.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "cidade": {
+                        "type": "string",
+                        "description": "Nome da cidade (ex: São Paulo, Rio de Janeiro, Curitiba, Nova York)."
+                    }
+                },
+                "required": ["cidade"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "obter_conteudo_url",
+            "description": "Lê e extrai o conteúdo em texto de um site ou página web a partir de sua URL.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "description": "A URL completa da página a ser lida."
+                    }
+                },
+                "required": ["url"]
+            }
+        }
+    }
+]
+
+
+# ──────────────────────────────────────────────────────────
+#  GERENCIADOR MCP CLIENT
+# ──────────────────────────────────────────────────────────
+
+def carregar_config_mcp() -> dict:
+    if os.path.exists(MCP_CONFIG_FILE):
+        try:
+            with open(MCP_CONFIG_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            log.error(f"[MCP] Erro ao ler {MCP_CONFIG_FILE}: {e}")
+    return {"mcpServers": {}}
+
+
+async def executar_ferramenta_local(nome: str, argumentos: dict) -> str:
+    """Executa as ferramentas nativas de fallback."""
+    if nome == "buscar_web":
+        termo = argumentos.get("termo") or argumentos.get("query") or argumentos.get("q") or ""
+        return await buscar_web(str(termo))
+    elif nome == "obter_previsao_tempo":
+        cidade = argumentos.get("cidade") or argumentos.get("location") or argumentos.get("city") or "São Paulo"
+        return await obter_previsao_tempo(str(cidade))
+    elif nome == "obter_conteudo_url":
+        url = argumentos.get("url") or ""
+        return await obter_conteudo_url(str(url))
+    else:
+        return f"Ferramenta desconhecida: {nome}"
+
+
+async def coletar_ferramentas_mcp() -> tuple[list[dict], dict[str, Any]]:
+    """
+    Coleta ferramentas tanto de servidores MCP externos configurados (se houver e estiverem disponíveis)
+    quanto das ferramentas nativas integradas.
+    """
+    ferramentas_ollama = list(FERRAMENTAS_NATIVAS_SCHEMA)
+    mapa_executores = {
+        "buscar_web": executar_ferramenta_local,
+        "obter_previsao_tempo": executar_ferramenta_local,
+        "obter_conteudo_url": executar_ferramenta_local,
+    }
+
+    # Tenta inspecionar servidores externos se o SDK mcp estiver instalado
+    try:
+        from mcp import StdioServerParameters
+        from mcp.client.stdio import stdio_client
+        from mcp import ClientSession
+
+        config = carregar_config_mcp()
+        servidores = config.get("mcpServers", {})
+
+        for srv_name, srv_conf in servidores.items():
+            cmd = srv_conf.get("command")
+            args = srv_conf.get("args", [])
+            env = srv_conf.get("env")
+            if not cmd or srv_name == "web-search":
+                continue
+
+            try:
+                params = StdioServerParameters(command=cmd, args=args, env=env)
+                # Tenta conexão rápida com timeout curto para não travar
+                async with asyncio.timeout(2.0):
+                    async with stdio_client(params) as (read, write):
+                        async with ClientSession(read, write) as session:
+                            await session.initialize()
+                            tools_resp = await session.list_tools()
+                            for t in tools_resp.tools:
+                                schema_ollama = {
+                                    "type": "function",
+                                    "function": {
+                                        "name": f"{srv_name}__{t.name}",
+                                        "description": t.description or "",
+                                        "parameters": t.inputSchema or {}
+                                    }
+                                }
+                                ferramentas_ollama.append(schema_ollama)
+            except Exception as e:
+                log.debug(f"[MCP] Servidor MCP '{srv_name}' não está ativo no momento ({e}).")
+    except ImportError:
+        pass
+    except Exception as e:
+        log.debug(f"[MCP] Inspecção de servidores MCP: {e}")
+
+    return ferramentas_ollama, mapa_executores
+
+
+async def executar_comandos_mcp_ou_web(pergunta: str) -> str:
+    """
+    Fluxo orquestrado de execução de ferramentas via MCP / Web:
+    1. Envia a pergunta do usuário com a lista de tools para o modelo Ollama.
+    2. Captura os tool_calls solicitados pelo modelo.
+    3. Executa as ferramentas via MCP ou fallback nativo.
+    4. Envia o resultado de volta para o LLM gerar a resposta elegante em português para o Jarvis falar.
+    """
+    import ollama
+
+    # Escolhe o modelo mais apropriado para function calling e raciocínio
+    modelo, _ = brain_selector.escolher_melhor_modelo("CONVERSA")
+
+    tools_schema, mapa_exec = await coletar_ferramentas_mcp()
+
+    system_prompt = (
+        "Você é o assistente Jarvis com acesso a ferramentas em tempo real via internet e protocolo MCP.\n"
+        "Quando o usuário perguntar sobre fatos recentes, notícias, previsão do tempo ou links, "
+        "utilize as ferramentas disponíveis para obter dados atualizados.\n"
+        "Ao receber o resultado das ferramentas, formule uma resposta clara, natural, cortês e direta ao ponto "
+        "em português para ser falada pela sua voz."
+    )
+
+    mensagens = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": pergunta}
+    ]
+
+    try:
+        loop = asyncio.get_running_loop()
+        
+        # 1. Primeira chamada com tools ativas
+        resp = await loop.run_in_executor(
+            None,
+            lambda: ollama.chat(
+                model=modelo,
+                messages=mensagens,
+                tools=tools_schema
+            )
+        )
+
+        msg = resp.get("message", {})
+        tool_calls = msg.get("tool_calls", [])
+
+        # 2. Se o modelo não gerou tool_calls automaticamente mas a pergunta é nitidamente uma busca
+        if not tool_calls:
+            termos_clima = ["tempo em", "temperatura em", "previsão do tempo", "clima"]
+            eh_clima = any(k in pergunta.lower() for k in termos_clima)
+            
+            if eh_clima:
+                cidade = pergunta.lower()
+                for c in ["qual a", "previsão do tempo em", "tempo em", "clima em", "temperatura em", "como está o", "por favor"]:
+                    cidade = cidade.replace(c, "")
+                resultado_ferramenta = await obter_previsao_tempo(cidade.strip())
+            else:
+                resultado_ferramenta = await buscar_web(pergunta)
+
+            mensagens.append({"role": "assistant", "content": "Consultando a rede mundial de computadores..."})
+            mensagens.append({
+                "role": "user",
+                "content": f"Com base nestes dados obtidos em tempo real:\n\n{resultado_ferramenta}\n\nResponda com elegância ao senhor sobre sua pergunta inicial: '{pergunta}'"
+            })
+        else:
+            # 3. Executa cada ferramenta requisitada pelo modelo
+            mensagens.append(msg)
+            for call in tool_calls:
+                func = call.get("function", {})
+                nome_fn = func.get("name", "")
+                args = func.get("arguments", {})
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args)
+                    except:
+                        args = {}
+
+                log.info(f"[MCP] Modelo solicitou ferramenta: {nome_fn}({args})")
+                resultado_exec = await executar_ferramenta_local(nome_fn, args)
+
+                mensagens.append({
+                    "role": "tool",
+                    "content": str(resultado_exec),
+                })
+
+        # 4. Segunda chamada para sintetizar a resposta final em voz
+        resp_final = await loop.run_in_executor(
+            None,
+            lambda: ollama.chat(
+                model=modelo,
+                messages=mensagens
+            )
+        )
+        resposta_texto = resp_final.get("message", {}).get("content", "").strip()
+        if resposta_texto:
+            return resposta_texto
+
+    except Exception as e:
+        log.error(f"[MCP] Erro no fluxo MCP: {e}")
+        # Fallback de emergência: busca simples direta
+        try:
+            dados_web = await buscar_web(pergunta)
+            return f"Senhor, obtive as seguintes informações da rede:\n{dados_web}"
+        except Exception:
+            pass
+
+    return "Senhor, encontrei dificuldades ao consultar as ferramentas online no momento."
+
+```
+
+
+==================================================
  ARQUIVO: .\MODULOS\skills\vision_module.py
 ==================================================
 
@@ -3759,13 +4856,21 @@ def analisar_tela(pergunta_usuario):
 ```python
 import httpx
 
+_client: httpx.AsyncClient | None = None
+
+def _get_client() -> httpx.AsyncClient:
+    global _client
+    if _client is None or _client.is_closed:
+        _client = httpx.AsyncClient(timeout=0.5)
+    return _client
+
 async def atualizar_jarvis(cor_hex="#00ffff", intensidade=0.1, texto="", padrao=None):
     payload = {"cor": cor_hex, "intensidade": intensidade, "texto": texto}
     if padrao:
         payload["padrao"] = padrao
     try:
-        async with httpx.AsyncClient() as client:
-            await client.post("http://localhost:8000/update", json=payload, timeout=0.5)
+        client = _get_client()
+        await client.post("http://localhost:8000/update", json=payload)
     except Exception:
         pass
 
@@ -3829,20 +4934,7 @@ async def verificar_modelos_faltantes(config):
     for lista_m in modelos_perfil.values():
         for m in lista_m:
             if m.endswith("-air"):
-                repo_id = m.replace("-air", "")
-                target_dir = os.path.join(config['hd_path'], repo_id.split('/')[-1])
-                path_cache = os.path.join(config['hd_path'], "hub", f"models--{repo_id.replace('/', '--')}")
-                
-                shards_path = r"C:\Users\felip\.cache\huggingface\jarvis_shards_32b"
-                
-                if not (os.path.exists(path_cache) or (os.path.exists(target_dir) and len(os.listdir(target_dir)) > 5)):
-                    log.error(f"[INTEGRIDADE] Modelo base AirLLM faltando no HD: {repo_id}")
-                    return True
-                
-                if "Coder-32B" in repo_id:
-                    if not os.path.exists(shards_path) or len(os.listdir(shards_path)) < 5:
-                        log.error(f"[INTEGRIDADE] Fatias (shards) do 32B faltando no SSD.")
-                        return True
+                continue  # Modelos pesados AirLLM são opcionais e não bloqueiam o boot
             else:
                 if not any(m in loc for loc in modelos_locais):
                     log.error(f"[INTEGRIDADE] Modelo Ollama faltando: {m}")
@@ -3869,6 +4961,12 @@ try:
     import os
     import sys
     import traceback
+    import psutil
+    
+    # Adicionado para suportar caso cliquem/abram diretamente o arquivo invés do módulo
+    ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    if ROOT_DIR not in sys.path:
+        sys.path.insert(0, ROOT_DIR)
 
     # Importa o seletor para pegar os modelos propostos
     from MODULOS.brain.selector import selector as brain_selector
@@ -3876,8 +4974,9 @@ try:
     app = FastAPI()
 
     # Serve arquivos estáticos da pasta INTERFACE
-    if os.path.exists("INTERFACE"):
-        app.mount("/INTERFACE", StaticFiles(directory="INTERFACE"), name="INTERFACE")
+    interface_dir = os.path.join(ROOT_DIR, "INTERFACE")
+    if os.path.exists(interface_dir):
+        app.mount("/INTERFACE", StaticFiles(directory=interface_dir), name="INTERFACE")
 
     app.add_middleware(
         CORSMiddleware,
@@ -3911,7 +5010,7 @@ try:
     hardware_status = {}
 
     async def broadcast_hardware_status():
-        from . import hardware_module
+        from MODULOS.skills import hardware_module
         while True:
             try:
                 # Obtém o dict bruto de sensores
@@ -3936,7 +5035,8 @@ try:
 
     @app.get("/")
     async def get():
-        with open("index.html", "r", encoding="utf-8") as f:
+        index_path = os.path.join(ROOT_DIR, "INTERFACE", "index.html")
+        with open(index_path, "r", encoding="utf-8") as f:
             return Response(content=f.read(), media_type="text/html")
 
     @app.websocket("/ws")
@@ -3991,6 +5091,18 @@ try:
             "configurado": configurado
         }
 
+    @app.post("/system/download_heavy")
+    async def download_heavy():
+        from MODULOS.system.config import carregar_configuracao
+        from MODULOS.system.sync import baixar_modelos_pesados_airllm
+        config = carregar_configuracao()
+        if not config:
+            return {"status": "erro", "mensagem": "Sistema ainda não configurado (caminhos ausentes)."}
+        if download_status.get("ativo", False) or sharding_status.get("ativo", False):
+            return {"status": "ocupado", "mensagem": "Download ou sharding já em andamento."}
+        asyncio.create_task(baixar_modelos_pesados_airllm(config))
+        return {"status": "iniciado", "mensagem": "Download dos modelos pesados (AirLLM) iniciado em segundo plano."}
+
     @app.post("/system/download_progress")
     async def update_download(data: dict):
         global download_status
@@ -4041,7 +5153,8 @@ try:
             print("="*60)
             traceback.print_exc()
             print("="*60)
-            input("\nJanela travada para diagnóstico. Pressione ENTER para fechar...")
+            if sys.stdin and sys.stdin.isatty():
+                input("\nJanela travada para diagnóstico. Pressione ENTER para fechar...")
 
 except Exception:
     import traceback
@@ -4050,7 +5163,8 @@ except Exception:
     print("="*60)
     traceback.print_exc()
     print("="*60)
-    input("\nJanela travada para diagnóstico. Pressione ENTER para fechar...")
+    if sys.stdin and sys.stdin.isatty():
+        input("\nJanela travada para diagnóstico. Pressione ENTER para fechar...")
 
 ```
 
@@ -4062,7 +5176,10 @@ except Exception:
 ```python
 import os
 import logging
-import colorlog
+try:
+    import colorlog
+except ImportError:
+    colorlog = None
 from datetime import datetime
 
 # Garante que o diretório DADOS exista
@@ -4087,20 +5204,26 @@ def _setup_logger():
     )
     file_handler.setFormatter(file_formatter)
 
-    # 2. Handler para Console (Apenas INFO para cima, com cores)
-    console_handler = colorlog.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_formatter = colorlog.ColoredFormatter(
-        "%(log_color)s[%(levelname)s]%(reset)s %(message)s",
-        log_colors={
-            'DEBUG':    'cyan',
-            'INFO':     'white',
-            'WARNING':  'yellow',
-            'ERROR':    'red',
-            'CRITICAL': 'red,bg_white',
-        }
-    )
-    console_handler.setFormatter(console_formatter)
+    # 2. Handler para Console (Com cores se colorlog disponível, senão padrão)
+    if colorlog:
+        console_handler = colorlog.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_formatter = colorlog.ColoredFormatter(
+            "%(log_color)s[%(levelname)s]%(reset)s %(message)s",
+            log_colors={
+                'DEBUG':    'cyan',
+                'INFO':     'white',
+                'WARNING':  'yellow',
+                'ERROR':    'red',
+                'CRITICAL': 'red,bg_white',
+            }
+        )
+        console_handler.setFormatter(console_formatter)
+    else:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.INFO)
+        console_formatter = logging.Formatter("[%(levelname)s] %(message)s")
+        console_handler.setFormatter(console_formatter)
 
     logger.addHandler(file_handler)
     logger.addHandler(console_handler)
@@ -4208,7 +5331,7 @@ from MODULOS.system.services import reportar_progresso, reportar_sharding
 from MODULOS.brain.selector import selector as brain_selector
 from MODULOS.brain import airllm_module
 
-async def gerenciar_downloads_iniciais(config):
+async def gerenciar_downloads_iniciais(config, incluir_pesados: bool = False):
     from huggingface_hub import snapshot_download
     import ollama
     
@@ -4224,9 +5347,17 @@ async def gerenciar_downloads_iniciais(config):
                 rid = m.replace("-air", "")
                 if rid not in [x['id'] for x in nomes_airllm]:
                     nomes_airllm.append({"id": rid, "nome": rid.split('/')[-1]})
-            else: nomes_ollama.add(m)
+            else:
+                nomes_ollama.add(m)
     
+    if not incluir_pesados:
+        nomes_airllm = []
+        
     todos_ids = list(nomes_ollama) + [x['id'] for x in nomes_airllm]
+    if not todos_ids:
+        await reportar_progresso(100, "Nenhum modelo para baixar.", ativo=False)
+        return True
+
     await reportar_progresso(0, "Iniciando Sincronização...", lista_modelos=todos_ids)
 
     total_etapas = len(todos_ids)
@@ -4259,27 +5390,98 @@ async def gerenciar_downloads_iniciais(config):
         except Exception as e: 
             log.error(f"Erro no pull do {model_id}: {e}")
 
+    if incluir_pesados and nomes_airllm:
+        hd_path = config.get("hd_path", "D:\\ModelosIA")
+        ssd_path = config.get("ssd_path", os.path.expanduser("~/.cache/huggingface"))
+
+        for model in nomes_airllm:
+            etapa_atual += 1
+            prog_total = int((etapa_atual / total_etapas) * 100)
+            repo_id = model['id']
+            
+            target_dir = os.path.join(hd_path, repo_id.split('/')[-1])
+            path_cache = os.path.join(hd_path, "hub", f"models--{repo_id.replace('/', '--')}")
+            
+            modelo_base_existe = os.path.exists(path_cache) or (os.path.exists(target_dir) and len(os.listdir(target_dir)) > 5)
+            
+            if not modelo_base_existe:
+                await reportar_progresso(20, f"Baixando {repo_id}...", model_id=repo_id, progresso_total=prog_total)
+                try:
+                    os.makedirs(target_dir, exist_ok=True)
+                    await asyncio.to_thread(snapshot_download, repo_id=repo_id, local_dir=target_dir, local_dir_use_symlinks=False)
+                except Exception as e:
+                    log.error(f"DOWNLOAD ERROR {repo_id}: {e}")
+                    await reportar_progresso(0, f"Erro no download: {model['nome']}", model_id=repo_id, progresso_total=prog_total)
+                    continue 
+
+            shards_path = os.path.join(ssd_path, "jarvis_shards_32b")
+            precisa_sharding = False
+            if "Coder-32B" in repo_id:
+                if not os.path.exists(shards_path) or len(os.listdir(shards_path)) < 5:
+                    precisa_sharding = True
+            
+            if precisa_sharding:
+                await reportar_progresso(50, f"Fatiando camadas (sharding): {model['nome']}...", model_id=repo_id, progresso_total=prog_total)
+                await reportar_sharding(10, f"Lendo shards: {model['nome']}")
+                await asyncio.to_thread(airllm_module._inicializar_airllm, repo_id)
+                await reportar_sharding(100, f"Fatiamento concluído: {model['nome']}", ativo=False)
+            
+            await reportar_progresso(100, f"Concluído: {model['nome']}", model_id=repo_id, progresso_total=prog_total)
+                
+    await reportar_progresso(100, "Sincronização Finalizada!", ativo=False)
+    return True
+
+
+async def baixar_modelos_pesados_airllm(config):
+    """Baixa e faz sharding exclusivamente dos modelos AirLLM (-air)."""
+    from huggingface_hub import snapshot_download
+    
+    hw = brain_selector.detectar_hardware()
+    perfil_nome = brain_selector._escolher_perfil(hw)
+    modelos_perfil = brain_selector.PERFIS[perfil_nome]["modelos"]
+    
+    nomes_airllm = []
+    for lista in modelos_perfil.values():
+        for m in lista:
+            if m.endswith("-air"):
+                rid = m.replace("-air", "")
+                if rid not in [x['id'] for x in nomes_airllm]:
+                    nomes_airllm.append({"id": rid, "nome": rid.split('/')[-1]})
+    
+    if not nomes_airllm:
+        await reportar_progresso(100, "Nenhum modelo pesado configurado no perfil atual.", ativo=False)
+        return True
+
+    todos_ids = [x['id'] for x in nomes_airllm]
+    await reportar_progresso(0, "Iniciando Download dos Modelos Pesados...", lista_modelos=todos_ids)
+
+    total_etapas = len(nomes_airllm)
+    etapa_atual = 0
+
+    hd_path = config.get("hd_path", "D:\\ModelosIA")
+    ssd_path = config.get("ssd_path", os.path.expanduser("~/.cache/huggingface"))
+
     for model in nomes_airllm:
         etapa_atual += 1
         prog_total = int((etapa_atual / total_etapas) * 100)
         repo_id = model['id']
         
-        target_dir = os.path.join(config['hd_path'], repo_id.split('/')[-1])
-        path_cache = os.path.join(config['hd_path'], "hub", f"models--{repo_id.replace('/', '--')}")
+        target_dir = os.path.join(hd_path, repo_id.split('/')[-1])
+        path_cache = os.path.join(hd_path, "hub", f"models--{repo_id.replace('/', '--')}")
         
         modelo_base_existe = os.path.exists(path_cache) or (os.path.exists(target_dir) and len(os.listdir(target_dir)) > 5)
         
         if not modelo_base_existe:
-            await reportar_progresso(20, f"Baixando {repo_id}...", model_id=repo_id, progresso_total=prog_total)
+            await reportar_progresso(20, f"Baixando {repo_id} no HD...", model_id=repo_id, progresso_total=prog_total)
             try:
                 os.makedirs(target_dir, exist_ok=True)
-                snapshot_download(repo_id=repo_id, local_dir=target_dir, local_dir_use_symlinks=False)
+                await asyncio.to_thread(snapshot_download, repo_id=repo_id, local_dir=target_dir, local_dir_use_symlinks=False)
             except Exception as e:
                 log.error(f"DOWNLOAD ERROR {repo_id}: {e}")
                 await reportar_progresso(0, f"Erro no download: {model['nome']}", model_id=repo_id, progresso_total=prog_total)
                 continue 
 
-        shards_path = r"C:\Users\felip\.cache\huggingface\jarvis_shards_32b"
+        shards_path = os.path.join(ssd_path, "jarvis_shards_32b")
         precisa_sharding = False
         if "Coder-32B" in repo_id:
             if not os.path.exists(shards_path) or len(os.listdir(shards_path)) < 5:
@@ -4293,8 +5495,112 @@ async def gerenciar_downloads_iniciais(config):
         
         await reportar_progresso(100, f"Concluído: {model['nome']}", model_id=repo_id, progresso_total=prog_total)
             
-    await reportar_progresso(100, "Sincronização Finalizada!", ativo=False)
+    await reportar_progresso(100, "Download e Sharding de Modelos Pesados Concluídos!", ativo=False)
     return True
+
+```
+
+
+==================================================
+ ARQUIVO: .\MODULOS\voice\kokoro_tts_module.py
+==================================================
+
+```python
+"""
+kokoro_tts_module.py
+────────────────────
+Motor de síntese de voz (TTS) ultraleve e de alta qualidade baseado no Kokoro TTS (KPipeline).
+Opera 100% em CPU sem necessidade de binários externos pesados como SoX.
+Configurado para Português do Brasil ('p') com vozes masculinas e femininas (ex: 'pm_alex', 'pf_dora').
+"""
+
+import os
+import soundfile as sf
+import numpy as np
+from MODULOS.system.logger import log
+
+_pipeline = None
+
+def init_kokoro_tts():
+    """
+    Inicializa o pipeline do Kokoro TTS de forma preguiçosa (Lazy Loading).
+    Utiliza lang_code='p' para Português (Brasil).
+    """
+    global _pipeline
+    if _pipeline is not None:
+        return _pipeline
+
+    try:
+        log.info("[KOKORO-TTS] Inicializando modelo Kokoro TTS na CPU (lang_code='p')...")
+        from kokoro import KPipeline
+        _pipeline = KPipeline(lang_code='p', repo_id='hexgrad/Kokoro-82M', device='cpu')
+        log.info("[KOKORO-TTS] Pipeline carregado com sucesso.")
+        return _pipeline
+    except ImportError:
+        log.warning("[KOKORO-TTS] Pacote 'kokoro' não está instalado. Instale com: pip install kokoro soundfile")
+        return None
+    except Exception as e:
+        log.error(f"[KOKORO-TTS] Falha ao inicializar KPipeline: {e}")
+        return None
+
+
+def gerar_audio_kokoro(texto: str, output_path: str, voz: str = "pm_alex", velocidade: float = 1.1) -> bool:
+    """
+    Gera arquivo de áudio WAV a partir de texto utilizando Kokoro TTS.
+    
+    Args:
+        texto: Texto a ser sintetizado em voz.
+        output_path: Caminho completo para salvar o arquivo .wav.
+        voz: Identificador da voz (padrão 'pm_alex' para português masculino, 'pf_dora' para feminino).
+        velocidade: Fator de velocidade da fala (padrão 1.1).
+        
+    Returns:
+        bool: True se o áudio foi gerado e salvo com sucesso, False caso contrário.
+    """
+    global _pipeline
+    if not texto or not texto.strip():
+        return False
+
+    if _pipeline is None:
+        init_kokoro_tts()
+
+    if _pipeline is None:
+        return False
+
+    try:
+        dir_saida = os.path.dirname(os.path.abspath(output_path))
+        if dir_saida:
+            os.makedirs(dir_saida, exist_ok=True)
+
+        generator = _pipeline(texto.strip(), voice=voz, speed=velocidade)
+        audio_chunks = []
+
+        for gs, ps, audio in generator:
+            if audio is not None:
+                # Converte tensor PyTorch para NumPy caso necessário
+                if hasattr(audio, 'cpu') and hasattr(audio, 'numpy'):
+                    audio_arr = audio.cpu().numpy()
+                elif hasattr(audio, 'numpy'):
+                    audio_arr = audio.numpy()
+                else:
+                    audio_arr = np.array(audio, dtype=np.float32)
+
+                audio_chunks.append(np.array(audio_arr, dtype=np.float32))
+
+        if not audio_chunks:
+            log.warning(f"[KOKORO-TTS] Nenhum chunk de áudio foi retornado para o texto: '{texto[:40]}...'")
+            return False
+
+        # Concatena múltiplos trechos em um áudio contínuo
+        audio_final = np.concatenate(audio_chunks)
+        
+        # Salva o arquivo de saída com taxa de amostragem padrão de 24 kHz
+        sf.write(output_path, audio_final, 24000)
+        return True
+
+    except Exception as e:
+        log.error(f"[KOKORO-TTS] Erro durante a geração de áudio: {e}")
+        return False
 
 ```
 
@@ -4304,149 +5610,17 @@ async def gerenciar_downloads_iniciais(config):
 ==================================================
 
 ```python
-import os
-import time
-import warnings
-import torch
-import soundfile as sf
-from MODULOS.system.logger import log
+"""
+qwen_tts_module.py
+──────────────────
+Módulo mantido para compatibilidade retroativa.
+Redireciona chamadas legadas para o novo motor ultraleve kokoro_tts_module.py.
+"""
 
-# Suprime o aviso de SoX — não é usado neste módulo (usamos soundfile diretamente)
-warnings.filterwarnings("ignore", message=".*SoX.*")
-warnings.filterwarnings("ignore", message=".*sox.*")
-
-_model = None
-
-def init_qwen_tts(max_tentativas: int = 3, espera_base: int = 10):
-    """
-    Inicializa o modelo Qwen3-TTS com retry automático em caso de erro 429
-    (Too Many Requests) do HuggingFace.
-    
-    Args:
-        max_tentativas: Número máximo de tentativas de download.
-        espera_base: Segundos base de espera (dobra a cada tentativa).
-    """
-    global _model
-    if _model is not None:
-        return  # Já carregado, ignora
-
-    for tentativa in range(1, max_tentativas + 1):
-        try:
-            log.info(f"[QWEN-TTS] Inicializando modelo Qwen3-TTS (CPU). Tentativa {tentativa}/{max_tentativas}...")
-            from qwen_tts import Qwen3TTSModel
-            
-            model_id = "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
-            _model = Qwen3TTSModel.from_pretrained(model_id, device_map="cpu")
-            log.info(f"[QWEN-TTS] Modelo {model_id} carregado com sucesso na CPU!")
-            return  # Sucesso, sai do loop
-
-        except Exception as e:
-            erro_str = str(e)
-            # Trata rate limit do HuggingFace (erro 429)
-            if "429" in erro_str or "Too Many Requests" in erro_str:
-                espera = espera_base * (2 ** (tentativa - 1))  # 10s, 20s, 40s...
-                log.warning(
-                    f"[QWEN-TTS] HuggingFace com limite de requisições (429). "
-                    f"Aguardando {espera}s antes de tentar novamente... ({tentativa}/{max_tentativas})"
-                )
-                print(f"[QWEN-TTS] Rate limit do HuggingFace. Tentando novamente em {espera}s...")
-                if tentativa < max_tentativas:
-                    time.sleep(espera)
-                else:
-                    log.error("[QWEN-TTS] Todas as tentativas falharam (429). TTS desativado.")
-                    print("[QWEN-TTS] Todas as tentativas falharam. O sistema rodará sem voz Qwen.")
-                    _model = None
-            else:
-                # Outro tipo de erro — falha imediata
-                log.error(f"[QWEN-TTS] Falha ao carregar modelo: {e}")
-                print(f"[QWEN-TTS] Falha ao carregar modelo: {e}")
-                _model = None
-                return
-
-def gerar_audio_qwen(texto: str, output_path: str) -> bool:
-    global _model
-    if _model is None:
-        return False
-        
-    try:
-        # Garante que a pasta temporária exista
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        
-        # Caminhos para arquivos de referência de voz (Clonagem)
-        ref_audio = "DADOS/vozes/referencia.wav"
-        ref_text_path = "DADOS/vozes/referencia.txt"
-        
-        # A geração em CPU demorará um pouco
-        log.info(f"[QWEN-TTS] Processando fala: '{texto[:30]}...'")
-        
-        res = None
-        # Se houver arquivo de áudio e texto de referência, fazemos CLONAGEM
-        if os.path.exists(ref_audio) and os.path.exists(ref_text_path):
-            with open(ref_text_path, "r", encoding="utf-8") as f:
-                ref_text = f.read().strip()
-            
-            log.info(f"[QWEN-TTS] Usando voz de referência: {ref_audio}")
-            # Tenta usar a função de clonagem do modelo
-            res = _model.generate_voice_clone(
-                text=texto,
-                language="Portuguese", # Forçamos português para o Jarvis
-                ref_audio=ref_audio,
-                ref_text=ref_text
-            )
-        else:
-            # Caso contrário, usa a geração base (voz padrão do modelo)
-            res = _model.generate(texto)
-
-        # O generate() retorna os dados de áudio e a taxa de amostragem
-        if isinstance(res, tuple):
-            wav_data = res[0]
-            sr = res[1] if len(res) > 1 else 24000
-        else:
-            wav_data = res
-            sr = 24000
-
-        import numpy as np
-
-        # Se for uma lista (comum em modelos que geram chunks), concatenamos
-        if isinstance(wav_data, list):
-            processed_chunks = []
-            for chunk in wav_data:
-                if hasattr(chunk, "cpu"):
-                    processed_chunks.append(chunk.cpu().numpy())
-                else:
-                    processed_chunks.append(np.array(chunk))
-            wav_data = np.concatenate(processed_chunks)
-
-        # Converte para numpy se for um único Tensor do PyTorch
-        elif hasattr(wav_data, "cpu"):
-            wav_data = wav_data.cpu().numpy()
-            
-        # Garante que seja um array numpy e remove dimensões extras
-        wav_data = np.squeeze(np.array(wav_data))
-
-        # Salva o arquivo de áudio WAV
-        sf.write(output_path, wav_data, sr)
-        return True
-    except Exception as e:
-        log.error(f"[QWEN-TTS] Erro ao gerar audio: {e}")
-        print(f"[QWEN-TTS] ERRO na geracao de voz: {e}")
-        return False
-
-if __name__ == "__main__":
-    # Script de teste isolado
-    print("--- TESTE QWEN-TTS ---")
-    init_qwen_tts()
-    if _model:
-        teste_texto = "Olá senhor, o sistema de voz Qwen3-TTS está pronto e operante."
-        os.makedirs("TEMP_AUDIO", exist_ok=True)
-        sucesso = gerar_audio_qwen(teste_texto, "TEMP_AUDIO/teste_qwen.wav")
-        if sucesso:
-            print("Sucesso! Audio gerado em TEMP_AUDIO/teste_qwen.wav")
-        else:
-            print("Falha na geracao do audio.")
-    else:
-        print("Modelo nao carregado.")
-
+from MODULOS.voice.kokoro_tts_module import (
+    init_kokoro_tts as init_qwen_tts,
+    gerar_audio_kokoro as gerar_audio_qwen,
+)
 
 ```
 
@@ -4458,14 +5632,15 @@ if __name__ == "__main__":
 ```python
 import asyncio
 import edge_tts
-import pygame
+try:
+    import pygame
+except ImportError:
+    pygame = None
 import os
 import uuid
 import random
 import pyttsx3
 from MODULOS.system.comunicacao_visual import atualizar_jarvis
-from MODULOS.voice.qwen_tts_module import gerar_audio_qwen, init_qwen_tts
-
 STATUS_FALANDO = False
 fila_fala = asyncio.PriorityQueue()
 
@@ -4474,7 +5649,7 @@ _pygame_inited = False
 
 def init_pygame_safe():
     global _pygame_inited
-    if not _pygame_inited:
+    if not _pygame_inited and pygame is not None:
         try:
             pygame.mixer.init()
             _pygame_inited = True
@@ -4485,10 +5660,12 @@ async def falar(bot_nome, texto, prioridade=1):
     if not texto: return
     await fila_fala.put((prioridade, bot_nome, texto))
 
-def _gerar_audio_qwen_sync(texto, arquivo_final):
-    # Lazy load here: if model is not loaded, init_qwen_tts will load it.
-    init_qwen_tts() 
-    return gerar_audio_qwen(texto, arquivo_final)
+KOKORO_VOICE = "pm_alex"
+
+def _gerar_audio_kokoro_sync(texto, arquivo_final, voz=KOKORO_VOICE):
+    from MODULOS.voice.kokoro_tts_module import gerar_audio_kokoro, init_kokoro_tts
+    init_kokoro_tts()
+    return gerar_audio_kokoro(texto, arquivo_final, voz=voz)
 
 def _gerar_fallback_pyttsx3(texto, arquivo_final):
     engine = pyttsx3.init()
@@ -4503,7 +5680,7 @@ def _gerar_fallback_pyttsx3(texto, arquivo_final):
 async def processador_de_fala():
     global STATUS_FALANDO
     VOICE = "pt-BR-FranciscaNeural"
-    print("[SISTEMA] Processador de voz iniciado (Lazy Loading ativado).")
+    print("[SISTEMA] Processador de voz iniciado (Kokoro TTS ativado).")
 
     while True:
         try:
@@ -4511,19 +5688,18 @@ async def processador_de_fala():
             STATUS_FALANDO = True
             
             arquivo_final = f"TEMP_AUDIO/fala_{uuid.uuid4().hex}.wav"
-            sucesso_qwen = False
+            sucesso_kokoro = False
             
-            # --- TENTATIVA 1: Qwen3-TTS Local ---
+            # --- TENTATIVA 1: Kokoro TTS Local (CPU) ---
             try:
-                # Executa sincronamente, mas em uma thread separada para não travar o loop de eventos
-                sucesso = await asyncio.to_thread(_gerar_audio_qwen_sync, texto, arquivo_final)
+                sucesso = await asyncio.to_thread(_gerar_audio_kokoro_sync, texto, arquivo_final, KOKORO_VOICE)
                 if sucesso and os.path.exists(arquivo_final):
-                    sucesso_qwen = True
-            except Exception as eq:
-                print(f"[VOZ] Problema ao rodar Qwen-TTS: {eq}")
+                    sucesso_kokoro = True
+            except Exception as ek:
+                print(f"[VOZ] Problema ao rodar Kokoro-TTS: {ek}")
 
-            # --- TENTATIVA 2: Fallbacks ANTIGOS ---
-            if not sucesso_qwen:
+            # --- TENTATIVA 2: Fallbacks (Edge-TTS e pyttsx3) ---
+            if not sucesso_kokoro:
                 arquivo_final = arquivo_final.replace('.wav', '.mp3')
                 try:
                     # 1. Tenta Voz Neural (Edge-TTS) - já é async nativo
@@ -4540,7 +5716,7 @@ async def processador_de_fala():
                         print(f"[VOZ] Fallback local falhou: {e2}")
 
             # 3. Reprodução
-            if os.path.exists(arquivo_final):
+            if os.path.exists(arquivo_final) and pygame is not None:
                 init_pygame_safe()
                 try:
                     pygame.mixer.music.load(arquivo_final)
@@ -4580,47 +5756,163 @@ async def processador_de_fala():
 ```python
 import os
 import sys
-import asyncio
-from MODULOS.voice.qwen_tts_module import init_qwen_tts, gerar_audio_qwen
+
+# Adiciona a raiz do projeto ao sys.path para permitir a execução direta do script de teste
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+from MODULOS.voice.kokoro_tts_module import init_kokoro_tts, gerar_audio_kokoro
 
 def main():
-    print("--- INICIANDO TESTE DE VOZ DO JARVIS (QWEN3-TTS) ---")
+    print("--- INICIANDO TESTE DE VOZ DO JARVIS (KOKORO-TTS) ---")
     
-    # 1. Inicializa o modelo
-    # Como o init_qwen_tts é síncrono no módulo, chamamos direto
-    init_qwen_tts()
+    # 1. Inicializa o modelo Kokoro TTS na CPU
+    init_kokoro_tts()
     
     # 2. Lista de frases para teste
     frases = [
-        "Olá senhor, sou o Jarvis. Minha voz agora é gerada localmente pelo modelo Qwen3-TTS.",
+        "Olá senhor, sou o Jarvis. Minha voz agora é gerada localmente pelo modelo Kokoro TTS.",
         "Testando a naturalidade da fala em português. O que o senhor achou da minha nova voz?",
         "O sistema está operante e todos os núcleos neurais estão estáveis. Aguardo seus comandos.",
-        "A tecnologia avança, e agora posso falar de forma muito mais humana e natural."
+        "A tecnologia avança, e agora posso falar de forma muito mais humana, rápida e natural na CPU."
     ]
     
     # 3. Cria pasta de teste se não existir
     output_dir = "TESTE_FALA"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
     
     print(f"\nOs áudios serão salvos em: {os.path.abspath(output_dir)}")
     
     # 4. Gera os áudios de forma sequencial
     for i, frase in enumerate(frases):
-        filename = f"{output_dir}/teste_{i+1}.wav"
+        filename = os.path.join(output_dir, f"teste_{i+1}.wav")
         print(f"\n[Gerando {i+1}/{len(frases)}] -> '{frase[:50]}...'")
         
-        sucesso = gerar_audio_qwen(frase, filename)
+        sucesso = gerar_audio_kokoro(frase, filename, voz="pm_alex", velocidade=1.1)
         
         if sucesso:
-            print(f"[OK] SUCESSO: Audio gerado em {filename}")
+            print(f"[OK] SUCESSO: Áudio gerado em {filename}")
         else:
-            print(f"[ERRO] FALHA: Erro ao gerar o audio {i+1}. Verifique se o modelo foi baixado e se o SoX esta instalado.")
+            print(f"[ERRO] FALHA: Erro ao gerar o áudio {i+1}. Verifique se a biblioteca kokoro está instalada.")
 
     print("\n" + "="*40)
     print("TESTE FINALIZADO!")
-    print(f"Va ate a pasta '{output_dir}' para ouvir as amostras.")
+    print(f"Vá até a pasta '{output_dir}' para ouvir as amostras.")
     print("="*40)
+
+if __name__ == "__main__":
+    main()
+
+```
+
+
+==================================================
+ ARQUIVO: .\TESTES\testar_microfone.py
+==================================================
+
+```python
+"""
+testar_microfone.py
+───────────────────
+Script simplificado e direto para teste do microfone no Jarvis.
+Gravação em etapa única com medidor de volume em tempo real e transcrição via Whisper Small.
+"""
+
+import os
+import sys
+import time
+import numpy as np
+
+# Garante acesso aos módulos do projeto
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+import sounddevice as sd
+from MODULOS.ear import recorder
+from MODULOS.ear.recorder import (
+    selecionar_microfone,
+    calibrar_ruido,
+    garantir_stream,
+    gravar_fala,
+    FS,
+)
+from MODULOS.ear.models import carregar_whisper_small
+
+def main():
+    print("=" * 60)
+    print("      DIAGNÓSTICO E TESTE DO MICROFONE - JARVIS")
+    print("=" * 60)
+
+    # 1. Seleciona e exibe dispositivo otimizado
+    garantir_stream()
+    dev_info = sd.query_devices(recorder.DEVICE_ID) if recorder.DEVICE_ID is not None else sd.query_devices(kind='input')
+    print(f"\n[1/4] Microfone Ativo (DirectSound Otimizado):")
+    print(f"   Índice [{recorder.DEVICE_ID}]: {dev_info['name']}")
+    print(f"   Taxa nativa: {dev_info.get('default_samplerate')} Hz | Taxa Jarvis: {FS} Hz\n")
+
+    # 2. Calibração de silêncio
+    print("[2/4] Calibrando nível de ruído...")
+    print("-> Por favor, FIQUE EM SILÊNCIO por 2 segundos...")
+    calibrar_ruido(duracao=2)
+    print(f"-> Limiar de detecção definido para: {recorder.THRESHOLD_BARULHO:.5f}\n")
+
+    # 3. Gravação direta com feedback em tempo real
+    print("[3/4] Gravando sua fala:")
+    print("=" * 60)
+    print(">>> PODE FALAR SUA FRASE AGORA! <<<")
+    print("Exemplo: 'Jarvis, você é capaz de me ouvir perfeitamente agora?'")
+    print("=" * 60)
+
+    def feedback_terminal(gravando, vol, duracao):
+        largura = int(min(vol * 2000, 35))
+        barra = "█" * largura + "░" * (35 - largura)
+        if gravando:
+            sys.stdout.write(f"\r[GRAVANDO] [{barra}] Vol: {vol:.4f} | Duração: {duracao:.1f}s   ")
+        else:
+            sys.stdout.write(f"\r[AGUARDANDO VOZ] [{barra}] Vol: {vol:.4f}   ")
+        sys.stdout.flush()
+
+    arquivo_teste = "TEMP_AUDIO/teste_diagnostico.wav"
+    gravou = gravar_fala(max_silencio_frames=35, arquivo=arquivo_teste, callback_feedback=feedback_terminal)
+    print("\n")
+
+    if not gravou:
+        print("[FALHA] Nenhum som acima do limiar foi capturado.")
+        print("DICA: Verifique nas configurações de som do Windows se o microfone não está mudo ou com volume baixo.")
+        return
+
+    print(f"[OK] Áudio gravado com sucesso em: {arquivo_teste}")
+
+    # 4. Transcrição com Whisper Small (Alta Precisão em Português)
+    print("\n[4/4] Transcrevendo com Whisper Small (modelo de alta precisão)...")
+    carregar_whisper_small()
+    from MODULOS.ear import models
+    
+    segs, _ = models.whisper_model.transcribe(
+        arquivo_teste,
+        language="pt",
+        vad_filter=False
+    )
+    texto = " ".join([s.text for s in segs]).strip()
+    
+    print("\n" + "=" * 50)
+    print(f"TRANSCRITO PELO JARVIS: \"{texto}\"")
+    print("=" * 50)
+
+    # 5. Reprodução do áudio gravado
+    try:
+        import soundfile as sf
+        audio_data, samplerate = sf.read(arquivo_teste)
+        print("\n-> Reproduzindo o áudio completo que o Jarvis capturou...")
+        sd.play(audio_data, samplerate)
+        sd.wait()
+        print("-> Reprodução concluída.")
+    except Exception as e:
+        print(f"(Não foi possível reproduzir o áudio: {e})")
+
+    print("\nTeste concluído com sucesso!")
 
 if __name__ == "__main__":
     main()
@@ -4695,6 +5987,12 @@ import time
 import json
 import traceback
 
+# --- ADICIONE ESTE BLOCO DE CÓDIGO AQUI ---
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+# -------------------------------------------
+
 # Configuração de cores para o terminal
 class Cores:
     VERDE = '\033[92m'
@@ -4745,7 +6043,7 @@ async def testar_sistema():
             import sounddevice as sd
             dispositivos = sd.query_devices()
             if len(dispositivos) > 0:
-                log_resultado("EAR.HARDWARE", "OK", f"{len(dispositivos)} dispositivos de áudio detectados.")
+                log_resultado("EAR.HARDWARE", "OK", f"{len(dispositivos)} dispositivos de entrada de áudio detectados.")
             else:
                 log_resultado("EAR.HARDWARE", "AVISO", "Nenhum dispositivo de entrada de áudio encontrado.")
         except:
@@ -4844,6 +6142,7 @@ async def testar_sistema():
         log_resultado("GUI.SERVER", "ERRO", str(e))
 
     # 7. FINALIZAÇÃO E RELATÓRIO
+    os.makedirs(os.path.dirname(RELATORIO_PATH), exist_ok=True)
     with open(RELATORIO_PATH, "w", encoding="utf-8") as f:
         f.write("RELATÓRIO DE DIAGNÓSTICO GLOBAL DO JARVIS\n")
         f.write("="*40 + "\n")
@@ -4851,14 +6150,13 @@ async def testar_sistema():
         for res in resultados:
             f.write(res + "\n")
     
-    print(f"\n{Cores.AZUL}="*40)
-    print(f"DIAGNÓSTICO CONCLUÍDO!")
+    print(f"\n{Cores.AZUL}" + "="*40)
+    print("DIAGNÓSTICO CONCLUÍDO!")
     print(f"Relatório salvo em: {RELATORIO_PATH}")
-    print(f"="*40 + Cores.RESET)
+    print("="*40 + Cores.RESET)
 
 if __name__ == "__main__":
     asyncio.run(testar_sistema())
-
 ```
 
 
@@ -4907,6 +6205,12 @@ testar_gpu_real()
 ```python
 import asyncio
 import os
+import sys
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
 from MODULOS.brain.selector import selector as brain_selector
 from MODULOS import brain
 import ollama
@@ -4965,8 +6269,17 @@ if __name__ == "__main__":
 ==================================================
 
 ```python
+import sys
+import os
+
+# Adiciona a pasta raiz do projeto ao PATH do Python
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
 import asyncio
-from comunicacao_visual import atualizar_jarvis
+# Importação absoluta ajustada (sem os ".." no início)
+from MODULOS.system.comunicacao_visual import atualizar_jarvis
 
 async def testar():
     print("--- INICIANDO TESTE VISUAL ---")
@@ -4989,6 +6302,36 @@ async def testar():
 
 if __name__ == "__main__":
     asyncio.run(testar())
+```
+
+
+==================================================
+ ARQUIVO: .\TESTES\test_imports.py
+==================================================
+
+```python
+import importlib
+import os
+
+root_dir = r"c:\projeto ia\teste 2\Meu-agente-IA-main"
+modulos_dir = os.path.join(root_dir, "MODULOS")
+
+failures = 0
+for dp, dnx, fnx in os.walk(modulos_dir):
+    for f in fnx:
+        if f.endswith('.py') and f != '__init__.py':
+            rel_path = os.path.relpath(os.path.join(dp, f), root_dir)
+            module_name = rel_path.replace('.py', '').replace(os.path.sep, '.')
+            try:
+                importlib.import_module(module_name)
+            except ModuleNotFoundError as e:
+                # ignore third party errors we don't have installed locally in this environment, but flag internal refactor errors
+                if 'MODULOS' in str(e):
+                    print(f"FAILED IMPORT in {module_name}: {e}")
+                    failures += 1
+
+if failures == 0:
+    print("ALL IMPORTS RESOLVED CORRECTLY!")
 
 ```
 

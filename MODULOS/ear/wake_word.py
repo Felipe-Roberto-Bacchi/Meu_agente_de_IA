@@ -1,17 +1,39 @@
-from rapidfuzz import fuzz
+import re
+try:
+    from rapidfuzz import fuzz
+except ImportError:
+    fuzz = None
 from MODULOS.voice import voice_manager
 from MODULOS.system.logger import log
 from MODULOS.ear.recorder import gravar_fala
 from MODULOS.ear.models import whisper_tiny
 
-WAKE_WORDS = ["jarvis", "jarbas", "javes", "travis", "garvis", "service", "yaves", "lajardis", "jardis", "jarves"]
+WAKE_WORDS = [
+    "jarvis", "jarbas", "javes", "travis", "garvis", "service", 
+    "yaves", "lajardis", "jardis", "jarves", "jarvys", "ia"
+]
 
 def _contem_wake_word(texto: str) -> bool:
-    palavras = texto.lower().split()
+    if not texto:
+        return False
+    texto_limpo = re.sub(r'[^\w\s]', ' ', texto.lower())
+    palavras = texto_limpo.split()
+    
+    # 1. Checagem direta por palavra ou similaridade fuzzy
     for palavra in palavras:
         for wake in WAKE_WORDS:
-            if fuzz.ratio(palavra, wake) >= 70:
+            if palavra == wake:
                 return True
+            if fuzz and fuzz.ratio(palavra, wake) >= 70:
+                return True
+            elif wake in palavra:
+                return True
+                
+    # 2. Checagem na frase completa
+    for wake in WAKE_WORDS:
+        if wake in texto_limpo:
+            return True
+            
     return False
 
 def _transcrever_tiny(arquivo="TEMP_AUDIO/wake.wav") -> str:
@@ -24,7 +46,7 @@ def _transcrever_tiny(arquivo="TEMP_AUDIO/wake.wav") -> str:
         )
         return " ".join([s.text for s in segments]).strip().lower()
     except Exception as e:
-        log.debug(f"Erro transcrição tiny: {e}")
+        log.debug(f"[WAKE] Erro transcrição tiny: {e}")
         return ""
 
 def escutar_wake_word() -> bool:
@@ -33,8 +55,9 @@ def escutar_wake_word() -> bool:
 
     if gravar_fala(max_silencio_frames=15, arquivo="TEMP_AUDIO/wake.wav"):
         texto = _transcrever_tiny("TEMP_AUDIO/wake.wav")
-        log.debug(f"WAKE - Ouvi: '{texto}'")
-        if _contem_wake_word(texto):
-            log.info(f"WAKE WORD Detectada! (Ouvi: '{texto}')")
-            return True
+        if texto:
+            log.info(f"[WAKE] Ouvi: '{texto}'")
+            if _contem_wake_word(texto):
+                log.info(f"[WAKE] Palavra-chave reconhecida! ('{texto}')")
+                return True
     return False

@@ -23,8 +23,9 @@ try:
     app = FastAPI()
 
     # Serve arquivos estáticos da pasta INTERFACE
-    if os.path.exists("INTERFACE"):
-        app.mount("/INTERFACE", StaticFiles(directory="INTERFACE"), name="INTERFACE")
+    interface_dir = os.path.join(ROOT_DIR, "INTERFACE")
+    if os.path.exists(interface_dir):
+        app.mount("/INTERFACE", StaticFiles(directory=interface_dir), name="INTERFACE")
 
     app.add_middleware(
         CORSMiddleware,
@@ -58,7 +59,7 @@ try:
     hardware_status = {}
 
     async def broadcast_hardware_status():
-        from MODULOS.system import hardware_module
+        from MODULOS.skills import hardware_module
         while True:
             try:
                 # Obtém o dict bruto de sensores
@@ -83,7 +84,8 @@ try:
 
     @app.get("/")
     async def get():
-        with open("C:\\projeto ia\\teste 2\\Meu-agente-IA-main\\INTERFACE\\index.html", "r", encoding="utf-8") as f:
+        index_path = os.path.join(ROOT_DIR, "INTERFACE", "index.html")
+        with open(index_path, "r", encoding="utf-8") as f:
             return Response(content=f.read(), media_type="text/html")
 
     @app.websocket("/ws")
@@ -138,6 +140,18 @@ try:
             "configurado": configurado
         }
 
+    @app.post("/system/download_heavy")
+    async def download_heavy():
+        from MODULOS.system.config import carregar_configuracao
+        from MODULOS.system.sync import baixar_modelos_pesados_airllm
+        config = carregar_configuracao()
+        if not config:
+            return {"status": "erro", "mensagem": "Sistema ainda não configurado (caminhos ausentes)."}
+        if download_status.get("ativo", False) or sharding_status.get("ativo", False):
+            return {"status": "ocupado", "mensagem": "Download ou sharding já em andamento."}
+        asyncio.create_task(baixar_modelos_pesados_airllm(config))
+        return {"status": "iniciado", "mensagem": "Download dos modelos pesados (AirLLM) iniciado em segundo plano."}
+
     @app.post("/system/download_progress")
     async def update_download(data: dict):
         global download_status
@@ -174,6 +188,27 @@ try:
         await manager.broadcast(data)
         return {"status": "ok"}
 
+    @app.post("/api/mic/stop")
+    async def stop_mic():
+        os.makedirs(os.path.join(ROOT_DIR, "DADOS"), exist_ok=True)
+        flag_path = os.path.join(ROOT_DIR, "DADOS", "mic_stop.flag")
+        with open(flag_path, "w", encoding="utf-8") as f:
+            f.write("stop")
+        print("[INTERFACE] Sinal de parada de gravação enviado.")
+        return {"status": "ok", "mensagem": "Parada de gravação solicitada."}
+
+    @app.post("/api/comando_manual")
+    async def comando_manual(data: dict):
+        texto = data.get("texto", "").strip()
+        if texto:
+            os.makedirs(os.path.join(ROOT_DIR, "DADOS"), exist_ok=True)
+            cmd_path = os.path.join(ROOT_DIR, "DADOS", "comando_manual.txt")
+            with open(cmd_path, "w", encoding="utf-8") as f:
+                f.write(texto)
+            print(f"[INTERFACE] Comando manual recebido: '{texto}'")
+            return {"status": "ok", "texto": texto}
+        return {"status": "vazio"}
+
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():
         return Response(content="", media_type="image/x-icon")
@@ -188,7 +223,8 @@ try:
             print("="*60)
             traceback.print_exc()
             print("="*60)
-            input("\nJanela travada para diagnóstico. Pressione ENTER para fechar...")
+            if sys.stdin and sys.stdin.isatty():
+                input("\nJanela travada para diagnóstico. Pressione ENTER para fechar...")
 
 except Exception:
     import traceback
@@ -197,4 +233,5 @@ except Exception:
     print("="*60)
     traceback.print_exc()
     print("="*60)
-    input("\nJanela travada para diagnóstico. Pressione ENTER para fechar...")
+    if sys.stdin and sys.stdin.isatty():
+        input("\nJanela travada para diagnóstico. Pressione ENTER para fechar...")

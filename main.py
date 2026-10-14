@@ -1,4 +1,8 @@
 import os
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
+
 import subprocess
 import time
 import asyncio
@@ -18,7 +22,6 @@ from MODULOS.brain.selector import selector as brain_selector
 from MODULOS import ear
 from MODULOS import brain
 
-os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 CONFIG_FILE = "DADOS/config_paths.json"
 
 _executor = ThreadPoolExecutor(max_workers=1)
@@ -33,6 +36,8 @@ async def loop_principal():
     
     # Inicia o processador de voz em background
     asyncio.create_task(voice_manager.processador_de_fala())
+    # Inicia o monitoramento térmico em background
+    asyncio.create_task(hardware_module.sentinela_hardware())
     
     # Saudação inicial baseada no horário
     hora = time.localtime().tm_hour
@@ -46,6 +51,39 @@ async def loop_principal():
     estado_anterior = None
     
     while True:
+        # 1. Verifica se chegou comando manual de texto pela interface
+        flag_manual = "DADOS/comando_manual.txt"
+        if os.path.exists(flag_manual):
+            try:
+                with open(flag_manual, "r", encoding="utf-8") as f:
+                    texto_manual = f.read().strip()
+                os.remove(flag_manual)
+            except Exception:
+                texto_manual = ""
+
+            if texto_manual:
+                log.info(f"[COMANDO MANUAL]: \"{texto_manual}\"")
+                await atualizar_jarvis(cor_hex="#00ffff", texto=f"Comando: {texto_manual}", padrao="conversa")
+                memory_long.registrar_conversa_global("user", texto_manual)
+
+                if ear.verificar_despedida(texto_manual):
+                    despedida = "Até logo, senhor. Estarei aqui quando precisar."
+                    await atualizar_jarvis(cor_hex="#1a0033", texto=despedida, padrao="dormindo")
+                    await voice_manager.falar("Jarvis", despedida, prioridade=1)
+                    memory_long.registrar_conversa_global("assistant", despedida)
+                    continue
+
+                await atualizar_jarvis(cor_hex="#3366ff", texto="Pensando...", padrao="conversa")
+                cor_fala, padrao, resposta = await brain.processar_comando(texto_manual)
+                if resposta:
+                    await atualizar_jarvis(cor_hex=cor_fala, texto=resposta, padrao=padrao)
+                    log.info(f"[JARVIS]: {resposta}")
+                    memory_long.registrar_conversa_global("assistant", resposta)
+                    await voice_manager.falar("Jarvis", resposta, prioridade=1)
+                else:
+                    await atualizar_jarvis(cor_hex="#00ffff", texto="Pronto para comandos", padrao="conversa")
+                continue
+
         tem_audio, estado_atual = await _capturar_async()
         
         if estado_atual != estado_anterior:
@@ -61,9 +99,12 @@ async def loop_principal():
         estado_anterior = estado_atual
         if not tem_audio: continue
 
-        await atualizar_jarvis(cor_hex="#00ffff", texto="Ouvindo...", padrao="ouvindo")
+        await atualizar_jarvis(cor_hex="#00ffff", texto="Transcrevendo áudio...", padrao="tarefa")
         texto_bruto = ear.transcrever_audio()
-        if not texto_bruto: continue
+        if not texto_bruto:
+            log.info("[EAR] Áudio capturado sem palavras reconhecíveis.")
+            await atualizar_jarvis(cor_hex="#00ffff", texto="Pronto para comandos", padrao="conversa")
+            continue
 
         log.info(f"[ESCUTADO]: \"{texto_bruto}\"")
         memory_long.registrar_conversa_global("user", texto_bruto)
@@ -76,12 +117,15 @@ async def loop_principal():
             memory_long.registrar_conversa_global("assistant", despedida)
             continue
 
+        await atualizar_jarvis(cor_hex="#3366ff", texto="Pensando...", padrao="conversa")
         cor_fala, padrao, resposta = await brain.processar_comando(texto_bruto)
         if resposta:
             await atualizar_jarvis(cor_hex=cor_fala, texto=resposta, padrao=padrao)
             log.info(f"[JARVIS]: {resposta}")
             memory_long.registrar_conversa_global("assistant", resposta)
             await voice_manager.falar("Jarvis", resposta, prioridade=1)
+        else:
+            await atualizar_jarvis(cor_hex="#00ffff", texto="Pronto para comandos", padrao="conversa")
 
 if __name__ == "__main__":
     import webbrowser
@@ -124,16 +168,16 @@ if __name__ == "__main__":
         time.sleep(2)
         webbrowser.open("http://localhost:8000")
 
-        # 2. VERIFICAÇÃO DE INTEGRIDADE: Se deletou modelos ou shards, inicia recuperação
-        print("\n[MOCK/TESTE] Verificação de integridade e download de modelos PESADOS pulada.")
-        # if asyncio.run(verificar_modelos_faltantes(config)):
-        #     log.warning("Núcleos neurais ou shards incompletos. Iniciando recuperação...")
-        #     asyncio.run(gerenciar_downloads_iniciais(config))
-        #     log.info("Integridade restaurada. Reiniciando fluxo principal...")
+        # 2. VERIFICAÇÃO DE INTEGRIDADE: Se faltar modelo leve, recupera apenas os leves
+        if asyncio.run(verificar_modelos_faltantes(config)):
+            log.warning("Núcleos neurais incompletos. Iniciando recuperação...")
+            asyncio.run(gerenciar_downloads_iniciais(config, incluir_pesados=False))
+            log.info("Integridade restaurada. Reiniciando fluxo principal...")
 
         brain_selector.calibrar_e_salvar()
         memory_long.inicializar_banco()
         ear.inicializar_whisper()
+        ear.calibrar_ruido(duracao=2)
 
         asyncio.run(loop_principal())
         

@@ -18,11 +18,7 @@ async def _executar_em_background(tarefa: str):
         )
         
         if tipo == "airllm":
-            loop = asyncio.get_running_loop()
-            resultado = await loop.run_in_executor(
-                None,
-                lambda: asyncio.run(airllm_module.gerar_resposta_airllm(modelo, prompt, ""))
-            )
+            resultado = await asyncio.to_thread(airllm_module.gerar_resposta_airllm, modelo, prompt, "")
         else:
             loop = asyncio.get_running_loop()
             response = await loop.run_in_executor(

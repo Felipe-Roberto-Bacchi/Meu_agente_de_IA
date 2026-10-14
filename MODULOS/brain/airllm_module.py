@@ -35,18 +35,21 @@ def _inicializar_airllm(model_id: str):
     # --- ESTRATÉGIA DE PERFORMANCE MÁXIMA (HÍBRIDA) ---
     # Original (64GB+) fica no HD para não lotar o PC.
     # Fatias Shards (20GB) ficam no SSD para a IA falar RÁPIDO.
-    
-    # Sempre buscamos o modelo original no HD (D:) para economizar SSD
-    os.environ["HF_HOME"] = r"D:\ModelosIA"
+    from MODULOS.system.config import carregar_configuracao
+    cfg = carregar_configuracao()
+    hd_path = cfg.get("hd_path", "D:\\ModelosIA") if cfg else "D:\\ModelosIA"
+    ssd_path = cfg.get("ssd_path", os.path.expanduser("~/.cache/huggingface")) if cfg else os.path.expanduser("~/.cache/huggingface")
+
+    # Sempre buscamos o modelo original no HD para economizar SSD
+    os.environ["HF_HOME"] = hd_path
     
     if "72B" in model_id:
-        print(f"[AIRLLM] Modo 72B: Tudo no HD (D:\\ModelosIA) devido ao tamanho extremo.")
-        shards_path = None # Fica tudo no D:
+        print(f"[AIRLLM] Modo 72B: Tudo no HD ({hd_path}) devido ao tamanho extremo.")
+        shards_path = None # Fica tudo no HD
     else:
         # Para o modelo de Código (32B), queremos velocidade SSD nas fatias!
-        print(f"[AIRLLM] Modo Performance: Lendo original do HD (D:) e usando fatias no SSD (C:)")
-        # Pasta de shards no SSD (C:) do usuário
-        shards_path = r"C:\Users\felip\.cache\huggingface\jarvis_shards_32b"
+        print(f"[AIRLLM] Modo Performance: Lendo original do HD ({hd_path}) e usando fatias no SSD ({ssd_path})")
+        shards_path = os.path.join(ssd_path, "jarvis_shards_32b")
         if not os.path.exists(shards_path):
             os.makedirs(shards_path, exist_ok=True)
 
@@ -79,10 +82,10 @@ def _inicializar_airllm(model_id: str):
         return None
 
 
-async def gerar_resposta_airllm(model_id: str, prompt: str, system_prompt: str = "") -> str:
+def gerar_resposta_airllm(model_id: str, prompt: str, system_prompt: str = "") -> str:
     """
-    Função exposta para ser chamada pelo brain_module.py
-    Ao rodar, ele acorda o AirLLM (se ainda não estive acordado).
+    Função exposta síncrona para ser chamada com asyncio.to_thread(...).
+    Ao rodar, ele acorda o AirLLM (se ainda não estiver acordado).
     """
     modelo = _inicializar_airllm(model_id)
     if modelo is None:

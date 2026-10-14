@@ -1,7 +1,10 @@
 import time
 import re
 import requests
-import yfinance as yf
+try:
+    import yfinance as yf
+except ImportError:
+    yf = None
 from bs4 import BeautifulSoup
 from typing import List, Dict, Optional
 

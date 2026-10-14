@@ -13,6 +13,8 @@ def _ler_identidade() -> dict:
 
 def _detectar_vram_psutil() -> float:
     try:
+        import warnings
+        warnings.filterwarnings("ignore", category=FutureWarning)
         import pynvml
         pynvml.nvmlInit()
         handle = pynvml.nvmlDeviceGetHandleByIndex(0)

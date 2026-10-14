@@ -26,20 +26,7 @@ async def verificar_modelos_faltantes(config):
     for lista_m in modelos_perfil.values():
         for m in lista_m:
             if m.endswith("-air"):
-                repo_id = m.replace("-air", "")
-                target_dir = os.path.join(config['hd_path'], repo_id.split('/')[-1])
-                path_cache = os.path.join(config['hd_path'], "hub", f"models--{repo_id.replace('/', '--')}")
-                
-                shards_path = r"C:\Users\felip\.cache\huggingface\jarvis_shards_32b"
-                
-                if not (os.path.exists(path_cache) or (os.path.exists(target_dir) and len(os.listdir(target_dir)) > 5)):
-                    log.error(f"[INTEGRIDADE] Modelo base AirLLM faltando no HD: {repo_id}")
-                    return True
-                
-                if "Coder-32B" in repo_id:
-                    if not os.path.exists(shards_path) or len(os.listdir(shards_path)) < 5:
-                        log.error(f"[INTEGRIDADE] Fatias (shards) do 32B faltando no SSD.")
-                        return True
+                continue  # Modelos pesados AirLLM são opcionais e não bloqueiam o boot
             else:
                 if not any(m in loc for loc in modelos_locais):
                     log.error(f"[INTEGRIDADE] Modelo Ollama faltando: {m}")

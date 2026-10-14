@@ -28,19 +28,19 @@ const label = document.getElementById('status-label');
 let targetColor = null; // Inicializado no conectarWS ou animate
 let targetIntensity = 0.1;
 let currentIntensity = 0.1;
-let corEstado = '#1a0033';
+let corEstado = '#00ffff';
 let falando = false;
 let timerVolta = null;
 
-let currentPattern = 'dormindo';
-let targetPattern = 'dormindo';
+let currentPattern = 'conversa';
+let targetPattern = 'conversa';
 let patternBlend = 1.0;
 let frozenPattern = null;
 
 // Inicializa cores após Three.js carregar
 function initColors() {
     if (typeof THREE !== 'undefined' && !targetColor) {
-        targetColor = new THREE.Color('#1a0033');
+        targetColor = new THREE.Color('#00ffff');
     }
 }
 
@@ -183,6 +183,28 @@ async function selecionarPasta(id) {
     try { const r = await fetch('/system/pick_folder'); const d = await r.json(); if (d.path) document.getElementById(id).value = d.path; } catch(e) {}
 }
 
+window.baixarModelosPesados = async function() {
+    if (!confirm("Deseja iniciar o download dos modelos pesados (AirLLM 32B/72B)? Isso exigirá bastante espaço em disco e tempo.")) {
+        return;
+    }
+    const btn = document.getElementById('btn-download-heavy');
+    if (btn) btn.disabled = true;
+    try {
+        const r = await fetch('/system/download_heavy', { method: 'POST' });
+        const d = await r.json();
+        if (d.status === 'iniciado') {
+            abrirPortalSetup();
+            mudarParaInterfaceDownload();
+        } else {
+            alert(d.mensagem || "Status: " + d.status);
+        }
+    } catch(e) {
+        alert("Erro ao solicitar download dos modelos pesados: " + e);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
+};
+
 async function abrirPortalSetup() {
     if (document.getElementById('setup-overlay')) return;
     let modelosHTML = "Carregando núcleos...";
@@ -191,7 +213,7 @@ async function abrirPortalSetup() {
         modelosHTML = `<div style="font-size:11px; color:#555; margin-bottom:15px; text-align:left;"><b style="color:#00ffff">PERFIL:</b> ${d.perfil}<div style="background:rgba(255,255,255,0.03); padding:12px; border-radius:8px; margin-top:8px; border:1px solid rgba(0,255,255,0.05);">• Roteador: ${m.ROTEADOR[0]}<br>• Visão: ${m.VISAO[0]}<br>• Conversa: ${m.CONVERSA[0]}</div></div>`;
     } catch(e) {}
 
-    const html = `<div id="setup-overlay"><div class="setup-box" id="setup-content"><h1 style="letter-spacing:10px; margin-bottom:10px; color:#00ffff; text-shadow:0 0 20px #00ffff; text-align:center;">JARVIS SETUP</h1><p style="color:#666; margin-bottom:30px; letter-spacing:2px; font-size:11px; text-align:center;">CONFIGURAÇÃO DE DIRETÓRIOS NEURAIS</p>${modelosHTML}<div class="setup-input-group"><label>SSD (Leves)</label><div class="setup-input-row"><input type="text" id="path-ssd" class="setup-input" placeholder="C:\\Jarvis\\Ollama"><button onclick="selecionarPasta('path-ssd')" class="setup-btn-sel">...</button></div></div><div class="setup-input-group"><label>HD (Altas)</label><div class="setup-input-row"><input type="text" id="path-hd" class="setup-input" placeholder="D:\\ModelosIA"><button onclick="selecionarPasta('path-hd')" class="setup-btn-sel">...</button></div></div><button onclick="confirmarSetup()" class="setup-btn-main">CONECTAR NÚCLEOS</button></div></div>`;
+    const html = `<div id="setup-overlay"><div class="setup-box" id="setup-content"><h1 style="letter-spacing:10px; margin-bottom:10px; color:#00ffff; text-shadow:0 0 20px #00ffff; text-align:center;">JARVIS SETUP</h1><p style="color:#666; margin-bottom:30px; letter-spacing:2px; font-size:11px; text-align:center;">CONFIGURAÇÃO DE DIRETÓRIOS NEURAIS</p>${modelosHTML}<div class="setup-input-group"><label>SSD (Leves)</label><div class="setup-input-row"><input type="text" id="path-ssd" class="setup-input" placeholder="C:\\Jarvis\\Ollama"><button onclick="selecionarPasta('path-ssd')" class="setup-btn-sel">...</button></div></div><div class="setup-input-group"><label>HD (Altas)</label><div class="setup-input-row"><input type="text" id="path-hd" class="setup-input" placeholder="D:\\ModelosIA"><button onclick="selecionarPasta('path-hd')" class="setup-btn-sel">...</button></div></div><button onclick="confirmarSetup()" class="setup-btn-main">CONECTAR NÚCLEOS</button><button onclick="baixarModelosPesados()" class="setup-btn-main" style="margin-top:10px; border-color:#ffaa00; color:#ffaa00;">BAIXAR MODELOS PESADOS (OPCIONAL 32B/72B)</button></div></div>`;
     document.body.insertAdjacentHTML('beforeend', html);
 }
 
@@ -308,6 +330,64 @@ function animate() {
 window.addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
 animate(); conectarWS(); verificarSetup();
 
+// ═══════════════════════════════════════════════════════
+//  CONTROLE MANUAL DE ÁUDIO E COMANDOS (BOTÕES HUD)
+// ═══════════════════════════════════════════════════════
+async function pararGravacaoMic() {
+    const btn = document.getElementById('btn-stop-mic');
+    if (btn) {
+        btn.classList.add('btn-active');
+        btn.innerHTML = '<span class="btn-icon">⚡</span><span class="btn-text">ENVIANDO...</span>';
+    }
+    
+    const sub = document.getElementById('subtitles');
+    if (sub) {
+        sub.innerText = "Interrompendo microfone e transcrevendo...";
+        sub.style.color = "#00ffff";
+    }
+
+    try {
+        await fetch('/api/mic/stop', { method: 'POST' });
+        console.log('[MIC] Parada manual solicitada via HUD.');
+    } catch(e) {
+        console.error('Erro ao parar gravação:', e);
+    }
+
+    setTimeout(() => {
+        if (btn) {
+            btn.innerHTML = '<span class="btn-icon">⏹️</span><span class="btn-text">PARAR E ENVIAR</span>';
+            btn.classList.remove('btn-active');
+        }
+    }, 2500);
+}
+
+async function enviarComandoManual() {
+    const input = document.getElementById('input-comando');
+    if (!input) return;
+    const texto = input.value.trim();
+    if (!texto) return;
+
+    input.value = '';
+    const sub = document.getElementById('subtitles');
+    if (sub) {
+        sub.innerText = `"${texto}"`;
+        sub.style.color = "#00ffff";
+    }
+
+    try {
+        await fetch('/api/comando_manual', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ texto: texto })
+        });
+        console.log('[CMD] Comando manual enviado:', texto);
+    } catch(e) {
+        console.error('Erro ao enviar comando manual:', e);
+    }
+}
+
 // EXPOSE GLOBALS
-window.selecionarPasta = selecionarPasta; window.confirmarSetup = confirmarSetup;
-// debugSetState e showGraphs já movidos para o topo
+window.selecionarPasta = selecionarPasta; 
+window.confirmarSetup = confirmarSetup;
+window.pararGravacaoMic = pararGravacaoMic;
+window.enviarComandoManual = enviarComandoManual;

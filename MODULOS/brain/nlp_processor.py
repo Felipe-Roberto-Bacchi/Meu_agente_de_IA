@@ -1,4 +1,8 @@
-from rapidfuzz import utils
+try:
+    from rapidfuzz import utils
+    _limpar_texto = utils.default_process
+except ImportError:
+    _limpar_texto = lambda s: s.lower().strip()
 
 # Dicionário focado em corrigir o que o Whisper ouve errado
 DICIONARIO_CORRECAO = {
@@ -9,14 +13,19 @@ DICIONARIO_CORRECAO = {
     "rano": "ram", "pirâmide": "hardware"
 }
 
-def processar_intencao(comando_voz):
-    # 1. Normalização e Correção Fonética
+def normalizar_fonetica(comando_voz: str) -> str:
+    """Aplica correção fonética para termos que o Whisper frequentemente transcreve errado."""
+    if not comando_voz:
+        return ""
     palavras = comando_voz.lower().split()
     for i, p in enumerate(palavras):
         if p in DICIONARIO_CORRECAO: 
             palavras[i] = DICIONARIO_CORRECAO[p]
-    
-    texto = " ".join(palavras)
+    return " ".join(palavras)
+
+def processar_intencao(comando_voz):
+    # 1. Normalização e Correção Fonética
+    texto = normalizar_fonetica(comando_voz)
 
     # --- FILTRO DE SEGURANÇA: MEMÓRIA DE FATO ---
     # Se o senhor estiver mandando "guardar", "lembrar" ou "esquecer", 
@@ -43,7 +52,7 @@ def processar_intencao(comando_voz):
     # 3. Gatilhos de ABRIR_APP
     gatilhos_abrir = ["abrir", "iniciar", "executar", "lançar", "abre", "start"]
     if any(x in texto for x in gatilhos_abrir):
-        alvo = utils.default_process(texto)
+        alvo = _limpar_texto(texto)
         termos_limpeza = gatilhos_abrir + ["o ", "a ", "por favor", "meu", "minha"]
         for v in termos_limpeza:
             alvo = alvo.replace(v, "")

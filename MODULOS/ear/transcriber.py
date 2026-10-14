@@ -1,16 +1,20 @@
-from MODULOS.ear.models import whisper_model, carregar_whisper_small, _whisper_backend
+from MODULOS.ear import models
 from MODULOS.system.logger import log
 
-def transcrever_audio() -> str:
+def transcrever_audio(arquivo: str = "TEMP_AUDIO/input.wav") -> str:
     try:
-        if whisper_model is None:
-            carregar_whisper_small()
+        if models.whisper_model is None:
+            models.carregar_whisper_small()
 
-        if _whisper_backend == "openai_whisper_dml":
+        if models.whisper_model is None:
+            log.error("[EAR] Não foi possível carregar o modelo Whisper.")
+            return ""
+
+        if models._whisper_backend == "openai_whisper_dml":
             import whisper as openai_whisper
             result = openai_whisper.transcribe(
-                whisper_model,
-                "TEMP_AUDIO/input.wav",
+                models.whisper_model,
+                arquivo,
                 language="pt",
                 initial_prompt="Jarvis, comando de voz.",
                 fp16=False,
@@ -19,11 +23,11 @@ def transcrever_audio() -> str:
             )
             return (result.get("text") or "").strip()
 
-        segments, _ = whisper_model.transcribe(
-            "TEMP_AUDIO/input.wav",
+        segments, _ = models.whisper_model.transcribe(
+            arquivo,
             language="pt",
             initial_prompt="Jarvis, comando de voz.",
-            vad_filter=True,
+            vad_filter=False,
             beam_size=5,
             condition_on_previous_text=False
         )

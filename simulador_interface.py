@@ -30,7 +30,7 @@ def simular():
 
     # 1. Inicia o servidor
     print("[1/4] Iniciando servidor de interface...")
-    proc = subprocess.Popen([sys.executable, "-m", "MODULOS.interface_server"], 
+    proc = subprocess.Popen([sys.executable, "-m", "MODULOS.system.interface_server"], 
                             creationflags=subprocess.CREATE_NEW_CONSOLE)
     time.sleep(3) # Espera o servidor subir
     

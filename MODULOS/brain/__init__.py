@@ -65,6 +65,13 @@ async def processar_comando(texto_bruto: str):
         loop = asyncio.get_running_loop()
         resposta = await loop.run_in_executor(None, fii_monitor.obter_resumo_fiis)
 
+    elif categoria == "WEB_MCP":
+        cor      = "#0088ff"
+        padrao   = "tarefa"
+        await atualizar_jarvis(cor_hex=cor, texto="Conectando à rede / MCP...", padrao=padrao)
+        from MODULOS.skills import mcp_client
+        resposta = await mcp_client.executar_comandos_mcp_ou_web(texto_bruto)
+
     else:
         cor      = "#00ffff"
         padrao   = "conversa"

@@ -11,8 +11,12 @@ Busca semântica: "como me chamo" encontra "nome = Felipe" sem precisar
 da palavra exata — o ChromaDB entende o significado.
 """
 
-import chromadb
-from chromadb.utils import embedding_functions
+try:
+    import chromadb
+    from chromadb.utils import embedding_functions
+except ImportError:
+    chromadb = None
+    embedding_functions = None
 from datetime import datetime
 import uuid
 
@@ -21,9 +25,7 @@ import uuid
 # ─────────────────────────────────────────
 
 # Embedding local via sentence-transformers (roda na CPU, sem internet)
-_EMB = embedding_functions.SentenceTransformerEmbeddingFunction(
-    model_name="all-MiniLM-L6-v2"
-)
+_EMB = None
 
 _client_fatos     = None
 _client_historico = None
@@ -33,7 +35,20 @@ _col_historico    = None
 
 def inicializar_banco():
     """Cria/abre os dois bancos ChromaDB. Chame uma vez no boot."""
-    global _client_fatos, _client_historico, _col_fatos, _col_historico
+    global _client_fatos, _client_historico, _col_fatos, _col_historico, _EMB, chromadb, embedding_functions
+
+    if chromadb is None:
+        try:
+            import chromadb
+            from chromadb.utils import embedding_functions
+        except ImportError:
+            print("[MEMÓRIA] ChromaDB não está instalado. Memória de longo prazo indisponível.")
+            return
+
+    if _EMB is None:
+        _EMB = embedding_functions.SentenceTransformerEmbeddingFunction(
+            model_name="all-MiniLM-L6-v2"
+        )
 
     # Banco de fatos permanentes
     _client_fatos = chromadb.PersistentClient(path="DADOS/chroma_fatos")
@@ -71,6 +86,8 @@ def salvar_memoria(chave: str, valor: str) -> str:
     O documento indexado é "chave: valor" para busca semântica rica.
     """
     _garantir_init()
+    if _col_fatos is None:
+        return "Banco de memória vetorial indisponível no momento."
     chave = chave.strip().lower()
     valor = valor.strip()
 
@@ -96,7 +113,7 @@ def buscar_memoria(consulta: str, n=3) -> str | None:
     Funciona mesmo com palavras diferentes (ex: 'nome' encontra 'como me chamo').
     """
     _garantir_init()
-    if _col_fatos.count() == 0:
+    if _col_fatos is None or _col_fatos.count() == 0:
         return None
 
     resultados = _col_fatos.query(
@@ -118,6 +135,8 @@ def buscar_memoria(consulta: str, n=3) -> str | None:
 def apagar_memoria(chave: str) -> str:
     """Remove um fato pelo nome da chave."""
     _garantir_init()
+    if _col_fatos is None:
+        return f"Não foi possível apagar '{chave}'."
     doc_id = f"fato_{chave.strip().lower().replace(' ', '_')}"
     try:
         _col_fatos.delete(ids=[doc_id])
@@ -129,7 +148,7 @@ def apagar_memoria(chave: str) -> str:
 def listar_fatos(n=20) -> list[dict]:
     """Retorna os N fatos mais recentes (para debug ou interface)."""
     _garantir_init()
-    if _col_fatos.count() == 0:
+    if _col_fatos is None or _col_fatos.count() == 0:
         return []
     resultado = _col_fatos.get(limit=n, include=["metadatas"])
     return resultado.get("metadatas", [])
@@ -145,6 +164,8 @@ def listar_fatos(n=20) -> list[dict]:
 def registrar_conversa_global(papel: str, mensagem: str):
     """Salva uma mensagem no histórico vetorial (sem limite de entradas)."""
     _garantir_init()
+    if _col_historico is None:
+        return
     if not mensagem or not mensagem.strip():
         return
 
@@ -170,7 +191,7 @@ def buscar_historico_relevante(consulta: str, n=3, max_meses=24) -> list[dict]:
     conversas antigas sobre assuntos que não aparecem todo mês.
     """
     _garantir_init()
-    if _col_historico.count() == 0:
+    if _col_historico is None or _col_historico.count() == 0:
         return []
 
     agora = datetime.now()
@@ -225,6 +246,8 @@ def montar_contexto_longo(consulta: str) -> str:
     Retorna string vazia se não houver nada relevante.
     """
     _garantir_init()
+    if _col_fatos is None and _col_historico is None:
+        return ""
     partes = []
 
     fatos = buscar_memoria(consulta, n=4)
