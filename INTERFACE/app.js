@@ -143,6 +143,22 @@ function conectarWS() {
                 lidarBriefingEnd(d);
                 return;
             }
+            if (d.type === "diag_start") {
+                lidarDiagStart(d);
+                return;
+            }
+            if (d.type === "diag_step") {
+                lidarDiagStep(d);
+                return;
+            }
+            if (d.type === "diag_end") {
+                lidarDiagEnd(d);
+                return;
+            }
+            if (d.type === "music_update") {
+                atualizarPlayerUI(d.track);
+                return;
+            }
 
             if (d.cor) { 
                 corEstado = d.cor; 
@@ -165,9 +181,11 @@ function conectarWS() {
                 targetIntensity = d.intensidade;
                 if (d.intensidade > 0.15) {
                     falando = true;
+                    aplicarAudioDucking(true);
                     if (timerVolta) clearTimeout(timerVolta);
                 } else if (falando) {
                     falando = false;
+                    aplicarAudioDucking(false);
                     timerVolta = setTimeout(() => { 
                         if (targetColor) targetColor.set(corEstado); 
                         atualizarCorUI(corEstado); 
@@ -176,6 +194,11 @@ function conectarWS() {
             }
 
             if (d.padrao && d.padrao !== targetPattern) {
+                if (d.padrao === "falando") {
+                    aplicarAudioDucking(true);
+                } else if (d.padrao !== "falando" && !falando) {
+                    aplicarAudioDucking(false);
+                }
                 const snap = getBlendedPattern(Date.now() * 0.001, currentIntensity);
                 frozenPattern = { ...snap }; 
                 currentPattern = targetPattern; 
@@ -952,21 +975,25 @@ let briefingCards = [];
 let cardAtualHero = null;
 let briefingTimerEncerramento = null;
 let briefingPillsTimer = null;
-const BRIEFING_AUTO_FECHAR_MS = 60000;
+const BRIEFING_AUTO_FECHAR_MS = 120000;
 
 // ── MODO DE LAYOUT: esfera Mini-Core no canto quando há conteúdo no centro ──
 function atualizarModoLayoutBriefing() {
     const stage = document.getElementById('briefing-stage');
     const dock = document.getElementById('briefing-dock');
+    const diagStage = document.getElementById('diagnostics-stage');
     const canvas = document.getElementById('canvas-container');
 
     const stageVisivel = !!(stage && !stage.classList.contains('hidden') && stage.children.length > 0);
     const dockVisivel = !!(dock && !dock.classList.contains('hidden'));
+    const diagVisivel = !!(diagStage && !diagStage.classList.contains('hidden') && diagStage.children.length > 0);
 
-    // Esfera encolhe para o canto enquanto existe um card em destaque no centro
-    if (canvas) canvas.classList.toggle('canvas-mini-corner', stageVisivel);
-    // Legenda inferior some enquanto houver qualquer holograma (centro ou dock)
-    document.body.classList.toggle('briefing-ativo', stageVisivel || dockVisivel);
+    const conteudoPresente = stageVisivel || dockVisivel || diagVisivel;
+
+    // Esfera encolhe para o canto tanto quando houver card no centro, diagnóstico ou dock aberto
+    if (canvas) canvas.classList.toggle('canvas-mini-corner', conteudoPresente);
+    // Legenda inferior some enquanto houver qualquer holograma (centro, diagnóstico ou dock)
+    document.body.classList.toggle('briefing-ativo', conteudoPresente);
 }
 
 function agendarAutoFechamentoBriefing() {
@@ -1043,6 +1070,9 @@ function lidarBriefingStart(dados) {
     pararPillsTelemetria();
     briefingCards = [];
     cardAtualHero = null;
+
+    const pill = document.getElementById('briefing-restore-pill');
+    if (pill) pill.classList.add('hidden');
 
     const dock = document.getElementById('briefing-dock');
     const dockRow = document.getElementById('briefing-dock-row');
@@ -1384,7 +1414,7 @@ function fecharHeroCard() {
     agendarAutoFechamentoBriefing();
 }
 
-// Limpa todos os hologramas e devolve a esfera majestosa ao centro
+// Limpa os hologramas ativos e recolhe para a pílula Glassmorphism (preserva os cards em memória)
 function fecharBriefingDock() {
     const dock = document.getElementById('briefing-dock');
     const stage = document.getElementById('briefing-stage');
@@ -1399,6 +1429,62 @@ function fecharBriefingDock() {
     if (briefingTimerEncerramento) clearTimeout(briefingTimerEncerramento);
     briefingTimerEncerramento = null;
     atualizarModoLayoutBriefing();
+
+    // Mostra pílula no canto inferior esquerdo com a contagem de cards
+    const pill = document.getElementById('briefing-restore-pill');
+    const pillCount = document.getElementById('pill-cards-count');
+    if (pill && briefingCards && briefingCards.length > 0) {
+        if (pillCount) pillCount.innerText = briefingCards.length;
+        pill.classList.remove('hidden');
+    }
+}
+
+// Reabre instantaneamente a fileira de cards com todas as notícias do último briefing
+function restaurarBriefingDock() {
+    const pill = document.getElementById('briefing-restore-pill');
+    if (pill) pill.classList.add('hidden');
+
+    const dock = document.getElementById('briefing-dock');
+    const dockRow = document.getElementById('briefing-dock-row');
+    if (!dock || !dockRow) return;
+
+    if (dockRow.children.length === 0 && briefingCards && briefingCards.length > 0) {
+        dockRow.innerHTML = '';
+        briefingCards.forEach(c => {
+            dockRow.appendChild(criarElementoMiniCard(c));
+        });
+    }
+
+    dock.classList.remove('hidden');
+    atualizarModoLayoutBriefing();
+    agendarAutoFechamentoBriefing();
+}
+
+// Carrega os cards do último briefing do backend para manter a pílula disponível mesmo após reload ou F11
+async function carregarUltimoBriefingCache() {
+    try {
+        const resp = await fetch('/api/briefing/last');
+        const data = await resp.json();
+        if (data && Array.isArray(data.cards) && data.cards.length > 0) {
+            briefingCards = data.cards;
+            const dockRow = document.getElementById('briefing-dock-row');
+            if (dockRow && dockRow.children.length === 0) {
+                dockRow.innerHTML = '';
+                briefingCards.forEach(c => {
+                    dockRow.appendChild(criarElementoMiniCard(c));
+                });
+            }
+            const pill = document.getElementById('briefing-restore-pill');
+            const pillCount = document.getElementById('pill-cards-count');
+            if (pill) {
+                if (pillCount) pillCount.innerText = briefingCards.length;
+                pill.classList.remove('hidden');
+            }
+            console.log(`[BRIEFING] ${briefingCards.length} cards restaurados do cache na pílula.`);
+        }
+    } catch(e) {
+        console.warn('[BRIEFING] Erro ao carregar cache do último briefing:', e);
+    }
 }
 
 async function iniciarBriefingManual() {
@@ -1421,6 +1507,226 @@ async function iniciarBriefingManual() {
                 btn.disabled = false;
             }
         }, 3000);
+    }
+}
+
+// ═══════════════════════════════════════════════════════
+//  SISTEMA DE DIAGNÓSTICO // MARK VII HUD HOLOGRÁFICO
+// ═══════════════════════════════════════════════════════
+let diagTimerFechamento = null;
+let diagContagemSegundos = 45;
+let diagIntervalTimer = null;
+const DIAG_AUTO_FECHAR_MS = 45000;
+
+const ICONES_SUBSISTEMAS = {
+    "ollama": "🧠",
+    "nucleo_neural": "🧠",
+    "vision": "👁️",
+    "visao_computacional": "👁️",
+    "memory": "📚",
+    "memoria_vetorial": "💾",
+    "voice": "🎙️",
+    "sintetizador_voz": "🎙️",
+    "calendar": "📅",
+    "google_calendar": "📅",
+    "drive": "📁",
+    "google_drive": "📁",
+    "media": "🎵",
+    "media_rede": "🌐",
+    "hardware": "🛡️",
+    "sentinela_hardware": "⚡"
+};
+
+function lidarDiagStart(dados) {
+    if (diagTimerFechamento) clearTimeout(diagTimerFechamento);
+    if (diagIntervalTimer) clearInterval(diagIntervalTimer);
+
+    const stage = document.getElementById('diagnostics-stage');
+    if (!stage) return;
+
+    stage.classList.remove('hidden');
+
+    const subsistemas = dados.subsistemas || [];
+    const htmlRows = subsistemas.map((sub, idx) => {
+        const icone = ICONES_SUBSISTEMAS[sub.id] || "⚙️";
+        return `
+            <div class="diag-row" id="diag-row-${sub.id}">
+                <div class="diag-row-left">
+                    <span class="diag-row-icon">${icone}</span>
+                    <div class="diag-row-info">
+                        <span class="diag-row-name">${idx + 1}. ${escapeHtmlBriefing(sub.nome)}</span>
+                        <span class="diag-row-detail" id="diag-detail-${sub.id}">Aguardando inicialização da varredura...</span>
+                    </div>
+                </div>
+                <div class="diag-row-right">
+                    <span class="diag-latency-tag" id="diag-latency-${sub.id}">-- ms</span>
+                    <span class="diag-badge pending" id="diag-badge-${sub.id}">PENDENTE</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    stage.innerHTML = `
+        <div class="diag-card-hero" id="diag-hero-card">
+            <div class="diag-header-row">
+                <div class="diag-title-group">
+                    <div class="diag-super-badge">
+                        <span class="diag-live-pulse"></span>
+                        <span>CHECKUP DO SISTEMA // MARK VII HUD</span>
+                    </div>
+                    <div class="diag-main-title">DIAGNÓSTICO DE SUBSISTEMAS NEURAIS</div>
+                </div>
+                <div class="diag-header-right">
+                    <div class="diag-progress-pill" id="diag-progress-counter">0 / ${dados.total || 8}</div>
+                    <button class="diag-close-btn" onclick="fecharDiagnostico()" title="Fechar Diagnóstico">✕ Fechar</button>
+                </div>
+            </div>
+
+            <div class="diag-progress-bar-track">
+                <div class="diag-progress-bar-fill" id="diag-progress-bar"></div>
+            </div>
+
+            <div class="diag-subsystems-list" id="diag-subsystems-container">
+                ${htmlRows}
+            </div>
+
+            <div class="diag-footer-row" id="diag-footer">
+                <div class="diag-summary-box">
+                    <span class="diag-summary-icon">⏳</span>
+                    <div>
+                        <div class="diag-summary-text-main" id="diag-summary-title">INICIANDO VARREDURA DE INTEGRIDADE...</div>
+                        <div class="diag-summary-text-sub" id="diag-summary-sub">Testando subsistemas em tempo real com telemetria direta.</div>
+                    </div>
+                </div>
+                <div class="diag-action-group">
+                    <span class="diag-timer-badge" id="diag-timer-display">AUTO-FECHAMENTO: 45s</span>
+                    <button class="diag-close-btn" onclick="fecharDiagnostico()">✕ Fechar</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    atualizarModoLayoutBriefing();
+    iniciarTimerDiagnostico(45);
+}
+
+function lidarDiagStep(step) {
+    if (!step || !step.id) return;
+
+    const row = document.getElementById(`diag-row-${step.id}`);
+    const detail = document.getElementById(`diag-detail-${step.id}`);
+    const latency = document.getElementById(`diag-latency-${step.id}`);
+    const badge = document.getElementById(`diag-badge-${step.id}`);
+    const counter = document.getElementById('diag-progress-counter');
+    const bar = document.getElementById('diag-progress-bar');
+
+    if (row) {
+        row.className = `diag-row ${step.status}`;
+        row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    if (detail && step.detalhe) {
+        detail.innerText = step.detalhe;
+    }
+
+    if (latency) {
+        latency.innerText = `${step.latencia_ms || 0} ms`;
+    }
+
+    if (badge) {
+        badge.className = `diag-badge ${step.status}`;
+        const labels = {
+            "testing": "TESTANDO...",
+            "ok": "✓ OPERACIONAL",
+            "warn": "⚠ ALERTA",
+            "error": "✕ FALHA"
+        };
+        badge.innerText = labels[step.status] || step.status.toUpperCase();
+    }
+
+    const stepIdx = (step.step_index !== undefined) ? step.step_index + 1 : 1;
+    const total = step.total_steps || 8;
+    if (counter) counter.innerText = `${stepIdx} / ${total}`;
+    if (bar) {
+        const pct = Math.min(100, Math.round((stepIdx / total) * 100));
+        bar.style.width = `${pct}%`;
+    }
+}
+
+function lidarDiagEnd(dados) {
+    const summaryTitle = document.getElementById('diag-summary-title');
+    const summarySub = document.getElementById('diag-summary-sub');
+    const summaryIcon = document.querySelector('.diag-summary-icon');
+    const counter = document.getElementById('diag-progress-counter');
+    const bar = document.getElementById('diag-progress-bar');
+
+    if (counter) counter.innerText = `${dados.total || 8} / ${dados.total || 8} FINALIZADO`;
+    if (bar) bar.style.width = '100%';
+
+    const todosOk = (dados.erro_total === 0 && dados.warn_total === 0);
+    if (summaryTitle) {
+        if (todosOk) {
+            summaryTitle.innerText = `${dados.online_total}/${dados.total} SISTEMAS OPERACIONAIS - 100% ONLINE`;
+            summaryTitle.style.color = "#00ff88";
+        } else if (dados.erro_total === 0) {
+            summaryTitle.innerText = `${dados.online_total}/${dados.total} SISTEMAS OPERACIONAIS (${dados.warn_total} EM ALERTA)`;
+            summaryTitle.style.color = "#ffaa00";
+        } else {
+            summaryTitle.innerText = `${dados.online_total}/${dados.total} ONLINE (${dados.erro_total} FALHA(S))`;
+            summaryTitle.style.color = "#ff0055";
+        }
+    }
+
+    if (summarySub && dados.resumo) {
+        summarySub.innerText = dados.resumo;
+    }
+
+    if (summaryIcon) {
+        summaryIcon.innerText = todosOk ? "🛡️" : (dados.erro_total > 0 ? "⚠️" : "⚡");
+    }
+
+    iniciarTimerDiagnostico(45);
+}
+
+function iniciarTimerDiagnostico(segundos = 45) {
+    if (diagTimerFechamento) clearTimeout(diagTimerFechamento);
+    if (diagIntervalTimer) clearInterval(diagIntervalTimer);
+
+    diagContagemSegundos = segundos;
+    const display = document.getElementById('diag-timer-display');
+    if (display) display.innerText = `AUTO-FECHAMENTO: ${diagContagemSegundos}s`;
+
+    diagIntervalTimer = setInterval(() => {
+        diagContagemSegundos--;
+        const disp = document.getElementById('diag-timer-display');
+        if (disp) disp.innerText = `AUTO-FECHAMENTO: ${diagContagemSegundos}s`;
+        if (diagContagemSegundos <= 0) {
+            clearInterval(diagIntervalTimer);
+            fecharDiagnostico();
+        }
+    }, 1000);
+}
+
+function fecharDiagnostico() {
+    if (diagTimerFechamento) clearTimeout(diagTimerFechamento);
+    if (diagIntervalTimer) clearInterval(diagIntervalTimer);
+    diagTimerFechamento = null;
+    diagIntervalTimer = null;
+
+    const stage = document.getElementById('diagnostics-stage');
+    if (stage) {
+        stage.classList.add('hidden');
+        stage.innerHTML = '';
+    }
+    atualizarModoLayoutBriefing();
+}
+
+async function iniciarDiagnosticoManual() {
+    fecharDiagnostico();
+    try {
+        await fetch('/api/diagnostics/start', { method: 'POST' });
+    } catch(e) {
+        console.error('Erro ao acionar diagnóstico manual:', e);
     }
 }
 
@@ -1524,11 +1830,486 @@ async function deletarLembrete(remId) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  MEDIA HUB HUD & MINI-PLAYER (YOUTUBE, LOCAL & SPOTIFY)
+// ═══════════════════════════════════════════════════════
+
+let audioPlayer = null;
+let estadoPlayerAtual = {
+    fonte: 'youtube',
+    tocando: false,
+    titulo: 'Jarvis Media Hub',
+    artista: 'Aguardando áudio...',
+    capa: '',
+    duracao: '0:00',
+    duracao_segundos: 0,
+    stream_url: '',
+    webpage_url: '',
+    volume: 80
+};
+
+let playerVolumePadrao = 0.8;
+let playerDuckAtivo = false;
+
+function obterElementoAudio() {
+    if (!audioPlayer) {
+        audioPlayer = document.getElementById('jarvis-audio-player');
+        if (audioPlayer) {
+            audioPlayer.volume = playerVolumePadrao;
+
+            audioPlayer.addEventListener('timeupdate', () => {
+                const cur = audioPlayer.currentTime || 0;
+                const dur = audioPlayer.duration || estadoPlayerAtual.duracao_segundos || 0;
+                const timeCurEl = document.getElementById('player-time-current');
+                const timeTotEl = document.getElementById('player-time-total');
+                const fillEl = document.getElementById('player-progress-fill');
+
+                if (timeCurEl) timeCurEl.innerText = formatarTempoPlayer(cur);
+                if (timeTotEl && dur > 0) timeTotEl.innerText = formatarTempoPlayer(dur);
+                if (fillEl && dur > 0) {
+                    const pct = Math.min(100, Math.max(0, (cur / dur) * 100));
+                    fillEl.style.width = `${pct}%`;
+                }
+            });
+
+            audioPlayer.addEventListener('play', () => {
+                const btnPlay = document.getElementById('btn-player-play');
+                const coverBox = document.getElementById('player-cover-box');
+                if (btnPlay) btnPlay.innerText = '⏸';
+                if (coverBox) coverBox.classList.add('playing');
+                estadoPlayerAtual.tocando = true;
+            });
+
+            audioPlayer.addEventListener('pause', () => {
+                const btnPlay = document.getElementById('btn-player-play');
+                const coverBox = document.getElementById('player-cover-box');
+                if (btnPlay) btnPlay.innerText = '⏯';
+                if (coverBox) coverBox.classList.remove('playing');
+                estadoPlayerAtual.tocando = false;
+            });
+
+            audioPlayer.addEventListener('ended', () => {
+                controlarMusica('next');
+            });
+
+            audioPlayer.addEventListener('error', (e) => {
+                console.warn('[PLAYER] Erro no stream do elemento de áudio:', e);
+            });
+        }
+    }
+    return audioPlayer;
+}
+
+function formatarTempoPlayer(seg) {
+    if (!seg || isNaN(seg) || seg < 0) return '0:00';
+    const s = Math.floor(seg);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${r < 10 ? '0' : ''}${r}`;
+}
+
+function atualizarPlayerUI(track, expandirSeTocando = true) {
+    if (!track) return;
+    Object.assign(estadoPlayerAtual, track);
+
+    const titleEl = document.getElementById('player-track-title');
+    const artistEl = document.getElementById('player-track-artist');
+    const coverImg = document.getElementById('player-cover-img');
+    const coverBox = document.getElementById('player-cover-box');
+    const badgeEl = document.getElementById('player-source-badge');
+    const btnPlay = document.getElementById('btn-player-play');
+    const timeTotEl = document.getElementById('player-time-total');
+    const volSlider = document.getElementById('player-volume-slider');
+    const capsuleEq = document.getElementById('player-capsule-eq');
+
+    if (titleEl) titleEl.innerText = track.titulo || 'Mídia Ativa';
+    if (artistEl) artistEl.innerText = track.artista || (track.fonte ? track.fonte.toUpperCase() : 'Jarvis');
+
+    if (coverImg && track.capa) {
+        coverImg.src = track.capa;
+    }
+
+    if (timeTotEl && track.duracao && track.duracao !== '--:--') {
+        timeTotEl.innerText = track.duracao;
+    }
+
+    // Badge da Fonte
+    if (badgeEl) {
+        badgeEl.className = 'player-source-badge';
+        if (track.fonte === 'spotify') {
+            badgeEl.innerText = 'SPOTIFY';
+            badgeEl.classList.add('badge-spotify');
+        } else if (track.fonte === 'local') {
+            badgeEl.innerText = 'LOCAL';
+            badgeEl.classList.add('badge-local');
+        } else {
+            badgeEl.innerText = 'YT';
+            badgeEl.classList.add('badge-yt');
+        }
+    }
+
+    // Seletor rápido de fontes
+    ['yt', 'local', 'spotify'].forEach(src => {
+        const btn = document.getElementById(`btn-src-${src}`);
+        if (btn) btn.classList.toggle('active', track.fonte === (src === 'yt' ? 'youtube' : src));
+    });
+
+    // Volume
+    if (track.volume !== undefined && volSlider) {
+        volSlider.value = track.volume;
+        playerVolumePadrao = track.volume / 100;
+        const player = obterElementoAudio();
+        if (player && !playerDuckAtivo) {
+            player.volume = playerVolumePadrao;
+        }
+    }
+
+    // Reprodução de áudio HTML5 (YouTube e Músicas Locais)
+    const player = obterElementoAudio();
+    if (track.fonte !== 'spotify' && track.stream_url && player) {
+        if (player.src !== track.stream_url) {
+            player.src = track.stream_url;
+            if (track.tocando) {
+                player.play().catch(e => console.log('[PLAYER] Autoplay restrição:', e));
+            }
+        } else {
+            if (track.tocando && player.paused) {
+                player.play().catch(e => console.log('[PLAYER] Play:', e));
+            } else if (!track.tocando && !player.paused) {
+                player.pause();
+            }
+        }
+    } else if (track.fonte === 'spotify') {
+        // Se a fonte for Spotify Desktop, pausa o áudio HTML5 para não sobrepor
+        if (player && !player.paused) {
+            player.pause();
+        }
+    }
+
+    if (btnPlay) {
+        btnPlay.innerText = track.tocando ? '⏸' : '⏯';
+    }
+    if (coverBox) {
+        coverBox.classList.toggle('playing', !!track.tocando);
+    }
+    if (capsuleEq) {
+        capsuleEq.classList.toggle('hidden', !track.tocando);
+    }
+
+    // Expansão automática se solicitado (ex: nova faixa começou a tocar)
+    if (track.tocando && expandirSeTocando) {
+        toggleExpandirPlayer(true);
+    }
+}
+
+// Audio Ducking: quando Jarvis fala, baixa suavemente a música para 20%
+function aplicarAudioDucking(ativar) {
+    const player = obterElementoAudio();
+    if (!player) return;
+
+    if (ativar && !playerDuckAtivo) {
+        playerDuckAtivo = true;
+        const targetVol = Math.max(0.04, playerVolumePadrao * 0.20);
+        player.volume = targetVol;
+    } else if (!ativar && playerDuckAtivo) {
+        playerDuckAtivo = false;
+        player.volume = playerVolumePadrao;
+    }
+}
+
+async function controlarMusica(action) {
+    const player = obterElementoAudio();
+
+    if (action === 'toggle') {
+        if (estadoPlayerAtual.fonte !== 'spotify' && player && player.src) {
+            if (player.paused) {
+                player.play().catch(() => {});
+            } else {
+                player.pause();
+            }
+        }
+    }
+
+    try {
+        const resp = await fetch('/api/music/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action })
+        });
+        const data = await resp.json();
+        if (data && data.track) {
+            atualizarPlayerUI(data.track);
+        }
+    } catch(e) {
+        console.error('[PLAYER] Erro ao enviar comando de controle:', e);
+    }
+}
+
+async function ajustarVolumePlayer(val) {
+    const volNum = parseInt(val, 10);
+    playerVolumePadrao = volNum / 100;
+    const player = obterElementoAudio();
+    if (player && !playerDuckAtivo) {
+        player.volume = playerVolumePadrao;
+    }
+
+    try {
+        await fetch('/api/music/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'volume', value: volNum })
+        });
+    } catch(e) {
+        console.warn('[PLAYER] Erro ao sincronizar volume:', e);
+    }
+}
+
+function mutarPlayer() {
+    const slider = document.getElementById('player-volume-slider');
+    const player = obterElementoAudio();
+    if (!slider || !player) return;
+
+    if (player.volume > 0) {
+        slider.dataset.oldVal = slider.value;
+        ajustarVolumePlayer(0);
+        slider.value = 0;
+    } else {
+        const restored = slider.dataset.oldVal || 80;
+        ajustarVolumePlayer(restored);
+        slider.value = restored;
+    }
+}
+
+function scrubPlayer(event) {
+    const wrap = document.getElementById('player-progress-wrap');
+    const player = obterElementoAudio();
+    if (!wrap || !player) return;
+
+    const rect = wrap.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, clickX / rect.width));
+
+    const dur = player.duration || estadoPlayerAtual.duracao_segundos || 0;
+    if (dur > 0 && player.src) {
+        player.currentTime = pct * dur;
+    }
+}
+
+function abrirLinkMusica() {
+    if (estadoPlayerAtual.webpage_url) {
+        window.open(estadoPlayerAtual.webpage_url, '_blank');
+    }
+}
+
+async function trocarFontePlayer(fonte) {
+    const termoDefault = fonte === 'local' ? '' : (fonte === 'spotify' ? 'synthwave' : 'lofi hip hop');
+    try {
+        const resp = await fetch('/api/music/play_query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: termoDefault, fonte: fonte })
+        });
+        const data = await resp.json();
+        if (data && data.track) {
+            atualizarPlayerUI(data.track);
+        }
+    } catch(e) {
+        console.error('[PLAYER] Erro ao alternar fonte:', e);
+    }
+}
+
+// Expande ou colapsa o Player entre Cápsula 46x46px e Widget Celular 250px
+function toggleExpandirPlayer(expandir) {
+    const playerEl = document.getElementById('hud-music-player');
+    if (!playerEl) return;
+    if (playerEl.dataset.justDragged) return; // Evita abrir acidentalmente logo após arrastar
+
+    if (expandir === undefined) {
+        playerEl.classList.toggle('collapsed');
+    } else if (expandir) {
+        playerEl.classList.remove('collapsed');
+    } else {
+        playerEl.classList.add('collapsed');
+    }
+}
+
+// Torna qualquer elemento HTML 100% arrastável pela tela com persistência no localStorage
+function tornarArrastavel(elemento, storageKey) {
+    if (!elemento) return;
+
+    // Restaurar posição salva previamente
+    try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+            const pos = JSON.parse(saved);
+            if (pos.left !== undefined && pos.top !== undefined) {
+                const maxX = Math.max(0, window.innerWidth - 60);
+                const maxY = Math.max(0, window.innerHeight - 60);
+                const clampedX = Math.min(Math.max(10, pos.left), maxX);
+                const clampedY = Math.min(Math.max(10, pos.top), maxY);
+                elemento.style.left = `${clampedX}px`;
+                elemento.style.top = `${clampedY}px`;
+                elemento.style.right = 'auto';
+                elemento.style.bottom = 'auto';
+            }
+        }
+    } catch(e) {
+        console.warn('Erro ao restaurar posição:', storageKey, e);
+    }
+
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let initialLeft = 0, initialTop = 0;
+    let moved = false;
+
+    const onStart = (e) => {
+        // Ignora cliques em botões, inputs, controles e links
+        if (e.target.closest('button, input, .player-progress-bar-wrap, .player-cover-box, .vol-icon, .player-min-btn, a')) {
+            return;
+        }
+
+        const clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY ?? (e.touches && e.touches[0].clientY);
+        if (clientX === undefined) return;
+
+        isDragging = true;
+        moved = false;
+        startX = clientX;
+        startY = clientY;
+
+        const rect = elemento.getBoundingClientRect();
+        initialLeft = rect.left;
+        initialTop = rect.top;
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onEnd);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onEnd);
+    };
+
+    const onMove = (e) => {
+        if (!isDragging) return;
+        const clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY ?? (e.touches && e.touches[0].clientY);
+        if (clientX === undefined) return;
+
+        const deltaX = clientX - startX;
+        const deltaY = clientY - startY;
+
+        if (!moved && (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4)) {
+            moved = true;
+            elemento.classList.add('dragging');
+        }
+
+        if (moved) {
+            if (e.cancelable) e.preventDefault();
+            const w = elemento.offsetWidth || 50;
+            const h = elemento.offsetHeight || 50;
+            const newLeft = Math.max(10, Math.min(window.innerWidth - w - 10, initialLeft + deltaX));
+            const newTop = Math.max(10, Math.min(window.innerHeight - h - 10, initialTop + deltaY));
+
+            elemento.style.left = `${newLeft}px`;
+            elemento.style.top = `${newTop}px`;
+            elemento.style.right = 'auto';
+            elemento.style.bottom = 'auto';
+        }
+    };
+
+    const onEnd = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        elemento.classList.remove('dragging');
+
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onEnd);
+        window.removeEventListener('touchmove', onMove);
+        window.removeEventListener('touchend', onEnd);
+
+        if (moved) {
+            const rect = elemento.getBoundingClientRect();
+            try {
+                localStorage.setItem(storageKey, JSON.stringify({ left: rect.left, top: rect.top }));
+            } catch(e) {}
+            elemento.dataset.justDragged = 'true';
+            setTimeout(() => { delete elemento.dataset.justDragged; }, 120);
+        }
+    };
+
+    elemento.addEventListener('mousedown', onStart);
+    elemento.addEventListener('touchstart', onStart, { passive: true });
+}
+
+async function inicializarStatusPlayer() {
+    // Configura drag & drop tanto para o Player quanto para a Pílula do Radar Matinal
+    const playerEl = document.getElementById('hud-music-player');
+    if (playerEl) {
+        tornarArrastavel(playerEl, 'jarvis_player_pos');
+    }
+    const pillEl = document.getElementById('briefing-restore-pill');
+    if (pillEl) {
+        tornarArrastavel(pillEl, 'jarvis_pill_pos');
+    }
+
+    try {
+        const resp = await fetch('/api/music/status');
+        const data = await resp.json();
+        if (data && data.titulo) {
+            // No carregamento inicial, não expande se estiver pausado
+            atualizarPlayerUI(data, false);
+        }
+    } catch(e) {
+        console.warn('[PLAYER] Status inicial do player não disponível:', e);
+    }
+}
+
+// Integração com Google Workspace (OAuth2)
+async function conectarContaGoogle() {
+    try {
+        const statusResp = await fetch('/api/google/status');
+        const status = await statusResp.json();
+
+        if (!status.configurado) {
+            alert('Atenção: O arquivo "DADOS/google_credentials.json" não foi encontrado.\n\nPara conectar sua conta Google:\n1. Acesse o Google Cloud Console (console.cloud.google.com)\n2. Crie credenciais OAuth 2.0 (Aplicativo para Computador)\n3. Baixe o JSON e salve como "DADOS/google_credentials.json"\n4. Clique neste botão novamente para autorizar.');
+            return;
+        }
+
+        if (status.autenticado) {
+            const reauth = confirm('Sua conta Google já está conectada e autenticada!\n\nDeseja reautenticar ou trocar de conta no navegador?');
+            if (!reauth) return;
+        }
+
+        const resp = await fetch('/api/google/auth', { method: 'POST' });
+        const res = await resp.json();
+        alert(res.mensagem || 'Processo de autenticação concluído.');
+    } catch(e) {
+        alert('Erro ao conectar ao Google: ' + e);
+    }
+}
+
+// Interrompe imediatamente qualquer fala, desfile de briefing ou ação ativa do Jarvis
+async function pararFalaJarvis() {
+    const btn = document.getElementById('btn-stop-mic');
+    if (btn) btn.classList.add('pulse-stop');
+
+    try {
+        await fetch('/api/jarvis/stop_action', { method: 'POST' });
+        if (subText) subText.innerText = '';
+        aplicarAudioDucking(false);
+    } catch(e) {
+        console.warn('Erro ao interromper fala do Jarvis:', e);
+    } finally {
+        setTimeout(() => {
+            if (btn) btn.classList.remove('pulse-stop');
+        }, 300);
+    }
+}
+
+// ═══════════════════════════════════════════════════════
 //  EXPOSIÇÃO DE MÉTODOS GLOBAIS AO WINDOW
 // ═══════════════════════════════════════════════════════
 window.selecionarPasta = selecionarPasta; 
 window.confirmarSetup = confirmarSetup;
-window.pararGravacaoMic = pararGravacaoMic;
+window.pararFalaJarvis = pararFalaJarvis;
+window.pararGravacaoMic = pararFalaJarvis;
 window.enviarComandoManual = enviarComandoManual;
 window.alternarMuteMic = alternarMuteMic;
 window.selecionarVoz = selecionarVoz;
@@ -1543,6 +2324,7 @@ window.lidarBriefingCardFocus = lidarBriefingCardFocus;
 window.lidarBriefingEnd = lidarBriefingEnd;
 window.reabrirCardHero = reabrirCardHero;
 window.fecharBriefingDock = fecharBriefingDock;
+window.restaurarBriefingDock = restaurarBriefingDock;
 window.fecharHeroCard = fecharHeroCard;
 window.iniciarBriefingManual = iniciarBriefingManual;
 window.carregarLembretes = carregarLembretes;
@@ -1552,10 +2334,32 @@ window.salvarNovoLembrete = salvarNovoLembrete;
 window.toggleLembrete = toggleLembrete;
 window.deletarLembrete = deletarLembrete;
 
-// Inicialização imediata de voz, microfone, lembretes e briefing de notícias
+// Métodos do Mini-Player HUD e Draggable
+window.controlarMusica = controlarMusica;
+window.ajustarVolumePlayer = ajustarVolumePlayer;
+window.mutarPlayer = mutarPlayer;
+window.scrubPlayer = scrubPlayer;
+window.abrirLinkMusica = abrirLinkMusica;
+window.trocarFontePlayer = trocarFontePlayer;
+window.atualizarPlayerUI = atualizarPlayerUI;
+window.aplicarAudioDucking = aplicarAudioDucking;
+window.toggleExpandirPlayer = toggleExpandirPlayer;
+window.tornarArrastavel = tornarArrastavel;
+window.conectarContaGoogle = conectarContaGoogle;
+
+// Métodos de Diagnóstico Mark VII
+window.iniciarDiagnosticoManual = iniciarDiagnosticoManual;
+window.fecharDiagnostico = fecharDiagnostico;
+window.lidarDiagStart = lidarDiagStart;
+window.lidarDiagStep = lidarDiagStep;
+window.lidarDiagEnd = lidarDiagEnd;
+
+// Inicialização imediata de voz, microfone, lembretes, briefing e player
 window.carregarConfigVoz();
 window.carregarConfigNoticias();
 window.carregarLembretes();
+carregarUltimoBriefingCache();
+inicializarStatusPlayer();
 checarStatusMuteMic();
 
 

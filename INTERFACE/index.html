@@ -113,6 +113,16 @@
                     <span class="toggle-check">✓</span>
                 </button>
                 <div class="dropdown-divider"></div>
+                <div class="dropdown-header">DIAGNÓSTICO & CHECKUP</div>
+                <button class="dropdown-item" id="btn-run-diagnostics" onclick="iniciarDiagnosticoManual(); closeSysMenu();" title="Executar Diagnóstico Completo de Todos os 8 Subsistemas em Tempo Real">
+                    <span class="item-icon">🩺</span> Diagnóstico // Mark VII
+                </button>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-header">INTEGRAÇÃO GOOGLE WORKSPACE</div>
+                <button class="dropdown-item" id="btn-google-auth" onclick="conectarContaGoogle(); closeSysMenu();" title="Conectar ao Google Calendar e Google Drive">
+                    <span class="item-icon">🔗</span> Conectar Conta Google
+                </button>
+                <div class="dropdown-divider"></div>
                 <div class="dropdown-header">DEBUG VIEWS</div>
                 <button class="dropdown-item sub-item" onclick="debugSetState('home'); closeSysMenu();">
                     • Esfera Normal (Home)
@@ -255,11 +265,19 @@
 <!-- 🌌 STAGE HOLOGRÁFICO DO BRIEFING MATINAL (CARDS CENTRAIS EM DESTAQUE) -->
 <div id="briefing-stage" class="hidden"></div>
 
+<!-- 🩺 STAGE HOLOGRÁFICO DE DIAGNÓSTICO DE SISTEMAS // MARK VII -->
+<div id="diagnostics-stage" class="hidden"></div>
+
 <!-- 🌌 DOCK INFERIOR: CARDS DE VIDRO FLUTUANTES (SEM CAIXA DE FUNDO) -->
 <div id="briefing-dock" class="hidden">
     <div id="briefing-dock-row"></div>
-    <button id="btn-briefing-clear" class="briefing-clear-btn" onclick="fecharBriefingDock()" title="Fechar os hologramas do briefing">✕ Limpar Tela</button>
+    <button id="btn-briefing-clear" class="briefing-clear-btn" onclick="fecharBriefingDock()" title="Minimizar os hologramas do briefing para a pílula">✕ Minimizar</button>
 </div>
+
+<!-- 📰 PÍLULA FLUTUANTE DE RESTAURAÇÃO DO BRIEFING (RADAR MATINAL) -->
+<button id="briefing-restore-pill" class="briefing-restore-pill hidden" onclick="restaurarBriefingDock()" title="Restaurar cards de notícias e telemetria do último briefing">
+    📰 RADAR MATINAL (<span id="pill-cards-count">7</span>)
+</button>
 
 <!-- 📋 MODAL DE NOVO LEMBRETE -->
 <div id="modal-lembrete" class="modal-overlay hidden" onclick="if(event.target===this) fecharModalLembrete()">
@@ -291,14 +309,86 @@
         <span class="btn-icon" id="mute-icon">🎤</span>
         <span class="btn-text" id="mute-text">MIC ATIVO</span>
     </button>
-    <button id="btn-stop-mic" class="hud-btn-stop" onclick="pararGravacaoMic()" title="Interrompe o microfone e envia o áudio imediatamente">
+    <button id="btn-stop-mic" class="hud-btn-stop" onclick="pararFalaJarvis()" title="Interromper fala ou ação imediatamente">
         <span class="btn-icon">⏹️</span>
-        <span class="btn-text">PARAR E ENVIAR</span>
+        <span class="btn-text">PARAR FALA</span>
     </button>
     <div class="input-command-wrapper">
         <input type="text" id="input-comando" placeholder="Ou digite um comando aqui..." onkeydown="if(event.key === 'Enter') enviarComandoManual()">
         <button id="btn-send-cmd" onclick="enviarComandoManual()">ENVIAR</button>
     </div>
+</div>
+
+<!-- 🎵 MINI-PLAYER GLASSMORPHISM HUD (COMPACTO, RETRÁTIL & ARRASTÁVEL) -->
+<div id="hud-music-player" class="hud-music-player collapsed" title="Jarvis Media Hub">
+    <!-- Cápsula / Ícone Flutuante (Visível quando minimizado) -->
+    <div class="player-capsule-btn" id="player-capsule" onclick="toggleExpandirPlayer()" title="Abrir Media Player">
+        <span class="player-capsule-icon" id="player-capsule-icon">🎵</span>
+        <div class="player-eq-mini hidden" id="player-capsule-eq">
+            <span></span><span></span><span></span>
+        </div>
+    </div>
+
+    <!-- Conteúdo Expandido (Estilo Widget Celular 250px) -->
+    <div class="player-expanded-body" id="player-expanded-content">
+        <div class="player-header-drag">
+            <span class="player-drag-handle" title="Arraste para mover">⋮⋮ MEDIA HUB</span>
+            <button class="player-min-btn" onclick="toggleExpandirPlayer(false)" title="Recolher Player">–</button>
+        </div>
+
+        <div class="player-card-main">
+            <!-- Miniatura e Equalizador Animado -->
+            <div class="player-cover-box" id="player-cover-box" onclick="abrirLinkMusica()" title="Abrir na fonte original">
+                <img id="player-cover-img" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&q=80" alt="Capa" class="player-cover-img" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&q=80'">
+                <div class="player-eq-overlay" id="player-eq-bars">
+                    <span class="eq-bar"></span>
+                    <span class="eq-bar"></span>
+                    <span class="eq-bar"></span>
+                    <span class="eq-bar"></span>
+                </div>
+            </div>
+
+            <!-- Informações da Faixa -->
+            <div class="player-info-col">
+                <div class="player-title-marquee" id="player-title-wrap">
+                    <span id="player-track-title" class="player-track-title">Jarvis Media Hub</span>
+                </div>
+                <div class="player-meta-row">
+                    <span id="player-track-artist" class="player-track-artist">Aguardando áudio...</span>
+                    <span id="player-source-badge" class="player-source-badge badge-yt">YT</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de Progresso -->
+        <div class="player-progress-row">
+            <span id="player-time-current" class="player-time-label">0:00</span>
+            <div class="player-progress-bar-wrap" id="player-progress-wrap" onclick="scrubPlayer(event)" title="Clique para avançar">
+                <div class="player-progress-bar-fill" id="player-progress-fill" style="width: 0%;"></div>
+            </div>
+            <span id="player-time-total" class="player-time-label">0:00</span>
+        </div>
+
+        <!-- Controles de Mídia, Volume e Seletor -->
+        <div class="player-controls-row">
+            <button class="player-ctrl-btn" id="btn-player-prev" onclick="controlarMusica('prev')" title="Faixa Anterior">⏮</button>
+            <button class="player-ctrl-btn play-pause-btn" id="btn-player-play" onclick="controlarMusica('toggle')" title="Play / Pause">⏯</button>
+            <button class="player-ctrl-btn" id="btn-player-next" onclick="controlarMusica('next')" title="Próxima Faixa">⏭</button>
+            <div class="player-volume-wrap">
+                <span class="vol-icon" onclick="mutarPlayer()" title="Mutar/Desmutar">🔊</span>
+                <input type="range" id="player-volume-slider" min="0" max="100" value="80" oninput="ajustarVolumePlayer(this.value)" class="player-vol-slider" title="Volume">
+            </div>
+        </div>
+
+        <div class="player-source-switcher">
+            <button class="source-opt-btn active" id="btn-src-yt" onclick="trocarFontePlayer('youtube')" title="YouTube Audio">YT</button>
+            <button class="source-opt-btn" id="btn-src-local" onclick="trocarFontePlayer('local')" title="Músicas do PC">LOCAL</button>
+            <button class="source-opt-btn" id="btn-src-spotify" onclick="trocarFontePlayer('spotify')" title="Spotify">SPOTIFY</button>
+        </div>
+    </div>
+
+    <!-- Elemento de Áudio HTML5 nativo -->
+    <audio id="jarvis-audio-player" preload="auto"></audio>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

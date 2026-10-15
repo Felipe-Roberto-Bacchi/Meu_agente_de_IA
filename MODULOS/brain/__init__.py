@@ -21,7 +21,26 @@ async def processar_comando(texto_bruto: str):
 
     log.info(f"Roteador - Categoria: {categoria} | Alvo: {alvo}")
 
-    if categoria == "HARDWARE":
+    if categoria == "PARAR_AÇÃO":
+        from MODULOS.voice import voice_manager
+        voice_manager.interromper_fala_imediata()
+        from MODULOS.skills import briefing_module
+        try:
+            briefing_module.ULTIMO_BRIEFING_ATIVO = False
+        except Exception:
+            pass
+        await atualizar_jarvis(cor_hex="#00ffff", intensidade=0.1, texto="Ação interrompida, senhor.", padrao="conversa")
+        log.info("[BRAIN] Comando de interrupção de fala/ação executado com sucesso.")
+        return "#00ffff", "conversa", None
+
+    elif categoria == "DUVIDA":
+        cor      = "#ffaa00"
+        padrao   = "conversa"
+        pergunta = alvo if (alvo and len(alvo) > 8 and "?" in alvo) else "Senhor, o áudio cortou levemente e não compreendi com clareza. Poderia repetir o comando?"
+        await atualizar_jarvis(cor_hex=cor, texto=pergunta, padrao=padrao)
+        resposta = pergunta
+
+    elif categoria == "HARDWARE":
         cor      = "#ffff00"
         padrao   = "hardware"
         resposta = await hardware_module.obter_status_hardware(foco=alvo)
@@ -65,6 +84,14 @@ async def processar_comando(texto_bruto: str):
         loop = asyncio.get_running_loop()
         resposta = await loop.run_in_executor(None, fii_monitor.obter_resumo_fiis)
 
+    elif categoria == "DIAGNOSTICO":
+        cor      = "#00ffff"
+        padrao   = "tarefa"
+        await atualizar_jarvis(cor_hex=cor, texto="Iniciando diagnóstico de sistemas...", padrao=padrao)
+        from MODULOS.skills import diagnostics_module
+        asyncio.create_task(diagnostics_module.executar_diagnostico_coreografado())
+        resposta = None
+
     elif categoria == "BRIEFING":
         cor      = "#00e5ff"
         padrao   = "tarefa"
@@ -85,6 +112,42 @@ async def processar_comando(texto_bruto: str):
         padrao   = "conversa"
         from MODULOS.skills import reminders_module
         resposta = reminders_module.processar_comando_voz(texto_bruto)
+
+    elif categoria == "MUSICA":
+        cor      = "#00e5ff"
+        padrao   = "conversa"
+        await atualizar_jarvis(cor_hex=cor, texto="Sintonizando áudio...", padrao=padrao)
+        from MODULOS.skills import music_module
+        resposta = await music_module.processar_comando_musica(texto_bruto)
+
+    elif categoria == "CONTROLE_PC":
+        cor      = "#00ffff"
+        padrao   = "tarefa"
+        await atualizar_jarvis(cor_hex=cor, texto="Acessando controles do sistema...", padrao=padrao)
+        from MODULOS.skills import pc_control_module
+        resposta = await pc_control_module.processar_comando_pc(texto_bruto)
+
+    elif categoria == "GOOGLE_WORKSPACE":
+        cor      = "#4285f4"
+        padrao   = "tarefa"
+        await atualizar_jarvis(cor_hex=cor, texto="Conectando ao Google Workspace...", padrao=padrao)
+        from MODULOS.skills import google_mcp_module
+        import re
+        cmd_lower = texto_bruto.lower()
+        if any(k in cmd_lower for k in ["drive", "arquivo", "documento"]):
+            arquivos = google_mcp_module.buscar_arquivos_google_drive(texto_bruto, max_results=5)
+            if arquivos:
+                titulos = [f"'{a['nome']}'" for a in arquivos[:3]]
+                resposta = f"Localizei {len(arquivos)} arquivo(s) no seu Google Drive: " + ", ".join(titulos) + "."
+            else:
+                resposta = "Não localizei arquivos no seu Google Drive com esses critérios, senhor."
+        else:
+            eventos = google_mcp_module.listar_eventos_google_calendar(max_results=3)
+            if eventos:
+                descricoes = [f"'{e['titulo']}' às {e['horario']}" for e in eventos]
+                resposta = f"Seus próximos compromissos no Google Calendar são: " + "; ".join(descricoes) + "."
+            else:
+                resposta = "Sua agenda do Google não possui próximos eventos agendados no momento, senhor."
 
     elif categoria == "WEB_MCP":
         cor      = "#0088ff"

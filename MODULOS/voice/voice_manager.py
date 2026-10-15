@@ -10,6 +10,7 @@ import random
 import pyttsx3
 from MODULOS.system.comunicacao_visual import atualizar_jarvis
 STATUS_FALANDO = False
+ABORTAR_FALA = False
 fila_fala = asyncio.PriorityQueue()
 
 # Defer pygame init to avoid hanging on boot
@@ -24,9 +25,38 @@ def init_pygame_safe():
         except Exception as e:
             print(f"[VOZ] Erro ao inicializar mixer (hardware de som): {e}")
 
+def interromper_fala_imediata():
+    """
+    Corta a fala do Jarvis no mesmo milissegundo:
+    1. Define ABORTAR_FALA = True e STATUS_FALANDO = False.
+    2. Esvazia toda a fila de reprodução e fala pendente.
+    3. Para e descarrega o mixer de áudio do pygame imediatamente.
+    """
+    global ABORTAR_FALA, STATUS_FALANDO
+    ABORTAR_FALA = True
+    STATUS_FALANDO = False
+
+    # Esvazia fila de fala imediatamente
+    while not fila_fala.empty():
+        try:
+            fila_fala.get_nowait()
+            fila_fala.task_done()
+        except Exception:
+            break
+
+    if pygame is not None:
+        try:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.unload()
+        except Exception:
+            pass
+
+    print("[VOZ] [PARAR] Fala do Jarvis interrompida imediatamente.")
+
 async def falar(bot_nome, texto, prioridade=1):
     if not texto: return
-    global STATUS_FALANDO
+    global STATUS_FALANDO, ABORTAR_FALA
+    ABORTAR_FALA = False  # Reset da flag ao iniciar nova fala solicitada
     STATUS_FALANDO = True
     await fila_fala.put((prioridade, bot_nome, texto))
 
@@ -263,8 +293,17 @@ async def processador_de_fala():
             # Produtor em background: sintetiza continuamente todos os chunks sem travar a reprodução
             async def produtor_audio():
                 for idx, chunk_text in enumerate(chunks):
+                    if ABORTAR_FALA:
+                        break
                     try:
                         arq = await _sintetizar_chunk_audio(chunk_text, VOICE)
+                        if ABORTAR_FALA:
+                            if arq and os.path.exists(arq):
+                                try:
+                                    os.remove(arq)
+                                except Exception:
+                                    pass
+                            break
                         if arq and os.path.exists(arq):
                             arquivos_para_limpar.append(arq)
                             await fila_reproducao.put((idx, chunk_text, arq))
@@ -280,25 +319,37 @@ async def processador_de_fala():
             primeiro_tocado = False
 
             while True:
+                if ABORTAR_FALA:
+                    break
+
                 item = await fila_reproducao.get()
-                if item is None:
-                    # Todos os chunks foram reproduzidos
+                if item is None or ABORTAR_FALA:
                     break
 
                 idx, chunk_text, arquivo_audio = item
 
-                if not primeiro_tocado:
+                if not primeiro_tocado and not ABORTAR_FALA:
                     # Restaura a legenda com o texto formatado original assim que o áudio começa
                     await atualizar_jarvis(cor_hex="#00e5ff", intensidade=0.8, texto=texto, padrao="falando")
                     primeiro_tocado = True
 
                 if arquivo_audio and os.path.exists(arquivo_audio) and pygame is not None:
                     try:
+                        if ABORTAR_FALA:
+                            break
                         pygame.mixer.music.load(arquivo_audio)
                         pygame.mixer.music.play()
 
-                        # Delay ultrabaixo de 20ms para checagem rápida de fim de reprodução (gapless)
+                        # Delay ultrabaixo de 20ms para checagem rápida de fim de reprodução ou aborto imediato
                         while pygame.mixer.music.get_busy():
+                            if ABORTAR_FALA or os.path.exists("DADOS/stop_action.flag"):
+                                if os.path.exists("DADOS/stop_action.flag"):
+                                    try:
+                                        os.remove("DADOS/stop_action.flag")
+                                    except Exception:
+                                        pass
+                                interromper_fala_imediata()
+                                break
                             agita = random.uniform(0.4, 0.9)
                             await atualizar_jarvis(intensidade=agita, texto=texto)
                             await asyncio.sleep(0.02)
@@ -315,13 +366,16 @@ async def processador_de_fala():
                             except Exception:
                                 pass
                 else:
-                    await atualizar_jarvis(intensidade=0.1, texto=texto)
-                    await asyncio.sleep(len(chunk_text) * 0.04)
+                    if not ABORTAR_FALA:
+                        await atualizar_jarvis(intensidade=0.1, texto=texto)
+                        await asyncio.sleep(len(chunk_text) * 0.04)
 
-            # Aguarda a tarefa produtora concluir
+            # Cancela e aguarda a tarefa produtora concluir
+            if not produtor_task.done():
+                produtor_task.cancel()
             try:
                 await produtor_task
-            except Exception:
+            except (asyncio.CancelledError, Exception):
                 pass
 
             # Limpeza final de arquivos residuais caso algum tenha sobrado

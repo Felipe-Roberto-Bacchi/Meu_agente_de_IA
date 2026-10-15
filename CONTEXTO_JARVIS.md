@@ -11,7 +11,20 @@ import os
 
 # Configurações
 ARQUIVO_SAIDA = "CONTEXTO_JARVIS.md"
-PASTAS_IGNORAR = {'.git', '__pycache__', 'monitor', 'TEMP_AUDIO'} # Pastas pesadas/binárias
+PASTAS_IGNORAR = {
+    '.git', '__pycache__', 'monitor', 'TEMP_AUDIO', 'TESTE_FALA',
+    'MUSICAS_LOCAIS', 'OBSIDIAN_VAULT', 'venv', '.venv', 'env',
+    'node_modules', '.idea', '.vscode'
+} # Pastas pesadas/binárias ou privadas
+
+# Arquivos com dados pessoais, senhas ou tokens que NUNCA devem ser empacotados
+ARQUIVOS_IGNORAR = {
+    'google_credentials.json', 'google_token.json', 'lembretes.json',
+    'ultimo_briefing.json', 'apps_cache.json', 'config_paths.json',
+    'jarvis_identity.json', 'model_registry.json', 'jarvis.log',
+    'comando_manual.txt', 'CONTEXTO_JARVIS.md'
+}
+
 EXTENSOES_PERMITIDAS = {'.py', '.json', '.yaml', '.html', '.css', '.js'} # Só o que é código/texto
 
 def empacotar_projeto():
@@ -20,9 +33,15 @@ def empacotar_projeto():
         
         for raiz, diretorios, arquivos in os.walk('.'):
             # Filtra pastas ignoradas
-            diretorios[:] = [d for d in diretorios if d not in PASTAS_IGNORAR]
+            diretorios[:] = [d for d in diretorios if d not in PASTAS_IGNORAR and not d.startswith('.')]
             
             for arquivo in arquivos:
+                # Proteção contra dados pessoais e segredos
+                if arquivo in ARQUIVOS_IGNORAR or arquivo.endswith('.flag') or arquivo.endswith('.log'):
+                    continue
+                if any(k in arquivo.lower() for k in ['token', 'secret', 'credential', 'cookie']):
+                    continue
+                    
                 extensao = os.path.splitext(arquivo)[1]
                 if extensao in EXTENSOES_PERMITIDAS:
                     caminho_completo = os.path.join(raiz, arquivo)
@@ -106,6 +125,16 @@ async def loop_principal():
     estado_anterior = None
     
     while True:
+        # -1. Verifica se houve interrupção imediata de fala/ação solicitada pela HUD
+        flag_stop = "DADOS/stop_action.flag"
+        if os.path.exists(flag_stop):
+            try:
+                os.remove(flag_stop)
+            except Exception:
+                pass
+            voice_manager.interromper_fala_imediata()
+            await atualizar_jarvis(cor_hex="#00ffff", intensidade=0.1, texto="", padrao="conversa")
+
         # 0. Verifica se chegou solicitação de teste de voz pela interface
         flag_teste_voz = "DADOS/teste_voz.flag"
         if os.path.exists(flag_teste_voz):
@@ -196,7 +225,14 @@ async def loop_principal():
             # Aguarda a fala iniciar e concluir para não gravar eco ou cliques
             await asyncio.sleep(0.15)
             while voice_manager.STATUS_FALANDO:
-                await asyncio.sleep(0.1)
+                if os.path.exists("DADOS/stop_action.flag"):
+                    try:
+                        os.remove("DADOS/stop_action.flag")
+                    except Exception:
+                        pass
+                    voice_manager.interromper_fala_imediata()
+                    break
+                await asyncio.sleep(0.05)
         else:
             await atualizar_jarvis(cor_hex="#00ffff", texto="Pronto para comandos", padrao="conversa")
 
@@ -958,746 +994,6 @@ if __name__ == "__main__":
 
 
 ==================================================
- ARQUIVO: .\DADOS\apps_cache.json
-==================================================
-
-```text
-{
-    "adobe photoshop 2025": "D:\\adobe\\Adobe Photoshop 2025\\Photoshop.exe",
-    "audacity": "C:\\Program Files\\Audacity\\Audacity.exe",
-    "brave": "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
-    "chitubox": "C:\\Program Files\\CHITUBOX\\CHITUBOX.exe",
-    "epic games launcher": "C:\\Program Files (x86)\\Epic Games\\Launcher\\Portal\\Binaries\\Win32\\EpicGamesLauncher.exe",
-    "firefox": "C:\\Program Files\\Mozilla Firefox\\firefox.exe",
-    "google chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-    "google drive": "C:\\Program Files\\Google\\Drive File Stream\\132.0.0.0\\GoogleDriveFS.exe",
-    "microsoft edge": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-    "navegação privativa do firefox": "C:\\Program Files\\Mozilla Firefox\\private_browsing.exe",
-    "notepad++": "C:\\Program Files\\Notepad++\\notepad++.exe",
-    "onedrive": "C:\\Program Files\\Microsoft OneDrive\\OneDrive.exe",
-    "tailscale": "C:\\Program Files\\Tailscale\\tailscale.exe",
-    "teamviewer": "C:\\Program Files\\TeamViewer\\TeamViewer.exe",
-    "techpowerup gpu-z": "C:\\Program Files (x86)\\GPU-Z\\GPU-Z.exe",
-    "ultimaker cura 5.13.0": "C:\\Program Files\\UltiMaker Cura 5.13.0\\UltiMaker-Cura.exe",
-    "vortex": "C:\\Program Files\\Vortex\\Vortex.exe",
-    "wireshark": "C:\\Program Files\\Wireshark\\Wireshark.exe",
-    "remote desktop connection": "C:\\WINDOWS\\system32\\mstsc.exe",
-    "steps recorder": "C:\\WINDOWS\\system32\\psr.exe",
-    "windows fax and scan": "C:\\WINDOWS\\system32\\WFS.exe",
-    "character map": "C:\\WINDOWS\\system32\\charmap.exe",
-    "dfrgui": "C:\\WINDOWS\\system32\\dfrgui.exe",
-    "disk cleanup": "C:\\WINDOWS\\system32\\cleanmgr.exe",
-    "iscsi initiator": "C:\\WINDOWS\\system32\\iscsicpl.exe",
-    "memory diagnostics tool": "C:\\WINDOWS\\system32\\MdSched.exe",
-    "odbc data sources (32-bit)": "C:\\WINDOWS\\syswow64\\odbcad32.exe",
-    "odbc data sources (64-bit)": "C:\\WINDOWS\\system32\\odbcad32.exe",
-    "recoverydrive": "C:\\WINDOWS\\system32\\RecoveryDrive.exe",
-    "registry editor": "C:\\WINDOWS\\regedit.exe",
-    "resource monitor": "C:\\WINDOWS\\system32\\perfmon.exe",
-    "system configuration": "C:\\WINDOWS\\system32\\msconfig.exe",
-    "system information": "C:\\WINDOWS\\system32\\msinfo32.exe",
-    "airdroid": "C:\\Program Files (x86)\\AirDroid\\AirDroid.exe",
-    "amd bug report tool": "C:\\Windows\\SysWOW64\\AMDBugReportTool.exe",
-    "attack shark software": "C:\\Program Files (x86)\\Attack Shark Software\\AttackShark.exe",
-    "cpu-z": "C:\\Program Files\\CPUID\\CPU-Z\\cpuz.exe",
-    "hwmonitor": "C:\\Program Files\\CPUID\\HWMonitor\\HWMonitor.exe",
-    "perfmonitor2": "C:\\Program Files\\CPUID\\PerfMonitor2\\PerfMonitor2.exe",
-    "powermax": "C:\\Program Files\\CPUID\\powerMAX\\powerMAX.exe",
-    "crystaldiskinfo": "C:\\Program Files\\CrystalDiskInfo\\DiskInfo64.exe",
-    "crystaldiskmark 9": "C:\\Program Files\\CrystalDiskMark9\\DiskMark64.exe",
-    "defraggler": "C:\\Program Files\\Defraggler\\Defraggler.exe",
-    "app recovery": "C:\\Program Files\\Electronic Arts\\EA Desktop\\EA Desktop\\EALauncher.exe",
-    "ea error reporter": "C:\\Program Files\\Electronic Arts\\EA Desktop\\EA Desktop\\ErrorReporter.exe",
-    "aida64 extreme": "C:\\Program Files\\FinalWire\\AIDA64 Extreme\\aida64.exe",
-    "git bash": "C:\\Program Files\\Git\\git-bash.exe",
-    "configurar java": "C:\\Program Files\\Java\\jre1.8.0_503\\bin\\javacpl.exe",
-    "sobre o java": "C:\\Program Files\\Java\\jre1.8.0_503\\bin\\javacpl.exe",
-    "verificar atualizações": "C:\\Program Files\\Java\\jre1.8.0_503\\bin\\javacpl.exe",
-    "mobadiff": "C:\\Program Files (x86)\\Mobatek\\MobaXterm\\MobaRTE.exe",
-    "mobatexteditor": "C:\\Program Files (x86)\\Mobatek\\MobaXterm\\MobaRTE.exe",
-    "mobaxterm": "C:\\Program Files (x86)\\Mobatek\\MobaXterm\\MobaXterm.exe",
-    "node.js": "C:\\Program Files\\nodejs\\node.exe",
-    "nvidia app": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\CEF\\NVIDIA App.exe",
-    "nsight compute 2025.2.0": "C:\\Program Files\\NVIDIA Corporation\\Nsight Compute 2025.2.0\\host\\windows-desktop-win7-x64\\ncu-ui.exe",
-    "nsight systems 2025.1.3": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2025.1.3\\host-windows-x64\\nsys-ui.exe",
-    "nsight systems 2026.2.1": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\host-windows-x64\\nsys-ui.exe",
-    "nsight monitor": "C:\\Program Files (x86)\\NVIDIA Corporation\\Nsight Visual Studio Edition 2025.2\\Monitor\\Common\\Nsight.Monitor.exe",
-    "frameview": "C:\\Program Files\\NVIDIA Corporation\\FrameView\\FrameView_x64.exe",
-    "oracle virtualbox": "C:\\Program Files\\Oracle\\VirtualBox\\VirtualBox.exe",
-    "pcsx2": "C:\\Program Files\\PCSX2\\pcsx2-qt.exe",
-    "peace": "C:\\Program Files\\EqualizerAPO\\config\\Peace.exe",
-    "application stack builder": "C:\\Program Files\\PostgreSQL\\18\\bin\\stackbuilder.exe",
-    "pgadmin 4": "C:\\Program Files\\PostgreSQL\\18\\pgAdmin 4\\runtime\\pgAdmin4.exe",
-    "reload configuration": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_ctl.exe",
-    "pageant": "C:\\Program Files\\PuTTY\\pageant.exe",
-    "psftp": "C:\\Program Files\\PuTTY\\psftp.exe",
-    "putty": "C:\\Program Files\\PuTTY\\putty.exe",
-    "puttygen": "C:\\Program Files\\PuTTY\\puttygen.exe",
-    "qbittorrent": "C:\\Program Files\\qBittorrent\\qbittorrent.exe",
-    "raspberry pi imager": "C:\\Program Files\\Raspberry Pi Ltd\\Imager\\rpi-imager.exe",
-    "rsi launcher": "C:\\Program Files\\Roberts Space Industries\\RSI Launcher\\RSI Launcher.exe",
-    "rustdesk": "C:\\Program Files\\RustDesk\\RustDesk.exe",
-    "steam": "C:\\Program Files (x86)\\Steam\\steam.exe",
-    "task manager": "C:\\WINDOWS\\system32\\taskmgr.exe",
-    "tlauncher": "C:\\Users\\felip\\AppData\\Roaming\\.minecraft\\TLauncher.exe",
-    "voicemod": "C:\\Program Files\\Voicemod V3\\Voicemod.exe",
-    "windows powershell ise (x86)": "C:\\WINDOWS\\syswow64\\WindowsPowerShell\\v1.0\\PowerShell_ISE.exe",
-    "windows powershell ise": "C:\\WINDOWS\\system32\\WindowsPowerShell\\v1.0\\PowerShell_ISE.exe",
-    "winrar": "C:\\Program Files\\WinRAR\\WinRAR.exe",
-    "wise data recovery": "C:\\Program Files (x86)\\Wise\\Wise Data Recovery\\WiseDataRecovery.exe",
-    "wise force deleter": "C:\\Program Files (x86)\\Wise\\Wise Force Deleter\\WiseDeleter.exe",
-    "wise memory optimizer": "C:\\Program Files\\Wise\\Wise Memory Optimizer\\WiseMemoryOptimzer.exe",
-    "administrative tools": "C:\\WINDOWS\\system32\\control.exe",
-    "antigravity": "C:\\Users\\felip\\AppData\\Local\\Programs\\Antigravity\\Antigravity.exe",
-    "arduino ide": "C:\\Users\\felip\\AppData\\Local\\Programs\\Arduino IDE\\Arduino IDE.exe",
-    "artcraft launcher": "C:\\Users\\felip\\AppData\\Local\\Programs\\ArtCraft Launcher\\artcraft-launcher.exe",
-    "discord": "C:\\Users\\felip\\AppData\\Local\\Discord\\app-1.0.9261\\Discord.exe",
-    "docker desktop": "C:\\Program Files\\Docker\\Docker\\resources\\Docker desktop.exe",
-    "drive beyond horizons": "C:\\Users\\felip\\AppData\\Local\\Programs\\Hydra\\Hydra.exe",
-    "femboy futa house": "C:\\Users\\felip\\AppData\\Local\\Programs\\Hydra\\Hydra.exe",
-    "gemini": "C:\\Users\\felip\\AppData\\Local\\Google\\Gemini\\Gemini.exe",
-    "hydra": "C:\\Users\\felip\\AppData\\Local\\Programs\\Hydra\\Hydra.exe",
-    "lightyear frontier": "C:\\Users\\felip\\AppData\\Local\\Programs\\Hydra\\Hydra.exe",
-    "navegador opera gx": "C:\\Users\\felip\\AppData\\Local\\Programs\\Opera GX\\opera.exe",
-    "nvidia geforce now": "C:\\Users\\felip\\AppData\\Local\\NVIDIA Corporation\\GeForceNOW\\CEF\\GeForceNOW.exe",
-    "obsidian": "C:\\Users\\felip\\AppData\\Local\\Programs\\Obsidian\\Obsidian.exe",
-    "ollama": "C:\\Users\\felip\\AppData\\Local\\Programs\\Ollama\\ollama app.exe",
-    "pinokio": "C:\\Users\\felip\\AppData\\Local\\Programs\\Pinokio\\Pinokio.exe",
-    "sapphire safari": "C:\\Users\\felip\\AppData\\Local\\Programs\\Hydra\\Hydra.exe",
-    "satisfactory mod manager": "C:\\Users\\felip\\AppData\\Local\\Programs\\Satisfactory Mod Manager\\Satisfactory Mod Manager.exe",
-    "livecaptions": "C:\\WINDOWS\\system32\\LiveCaptions.exe",
-    "magnify": "C:\\WINDOWS\\system32\\magnify.exe",
-    "narrator": "C:\\WINDOWS\\system32\\narrator.exe",
-    "on-screen keyboard": "C:\\WINDOWS\\system32\\osk.exe",
-    "voiceaccess": "C:\\WINDOWS\\system32\\voiceaccess.exe",
-    "claude": "C:\\Users\\felip\\AppData\\Local\\AnthropicClaude\\claude.exe",
-    "antigravity ide": "C:\\Users\\felip\\AppData\\Local\\Programs\\Antigravity IDE\\Antigravity IDE.exe",
-    "huggingface": "C:\\Program Files\\Mozilla Firefox\\firefox.exe",
-    "nexusmods users": "C:\\Program Files\\Mozilla Firefox\\firefox.exe",
-    "autodesk fusion": "C:\\Users\\felip\\AppData\\Local\\Autodesk\\webdeploy\\production\\6a0c9611291d45bb9226980209917c3d\\FusionLauncher.exe",
-    "benchmark": "C:\\Program Files\\EqualizerAPO\\Benchmark.exe",
-    "equalizer apo configuration editor": "C:\\Program Files\\EqualizerAPO\\Editor.exe",
-    "equalizer apo device selector": "C:\\Program Files\\EqualizerAPO\\DeviceSelector.exe",
-    "dark souls iii (me3)": "C:\\Users\\felip\\AppData\\Local\\Programs\\garyttierney\\me3\\bin\\me3.exe",
-    "elden ring (me3)": "C:\\Users\\felip\\AppData\\Local\\Programs\\garyttierney\\me3\\bin\\me3.exe",
-    "nightreign (me3)": "C:\\Users\\felip\\AppData\\Local\\Programs\\garyttierney\\me3\\bin\\me3.exe",
-    "sekiro (me3)": "C:\\Users\\felip\\AppData\\Local\\Programs\\garyttierney\\me3\\bin\\me3.exe",
-    "msys2 clang64": "C:\\msys64\\clang64.exe",
-    "msys2 clangarm64": "C:\\msys64\\clangarm64.exe",
-    "msys2 mingw64": "C:\\msys64\\mingw64.exe",
-    "msys2 msys": "C:\\msys64\\msys2.exe",
-    "msys2 ucrt64": "C:\\msys64\\ucrt64.exe",
-    "openclaw chat": "C:\\Users\\felip\\AppData\\Local\\OpenClawTray\\OpenClaw.Tray.WinUI.exe",
-    "openclaw companion settings": "C:\\Users\\felip\\AppData\\Local\\OpenClawTray\\OpenClaw.Tray.WinUI.exe",
-    "openclaw companion": "C:\\Users\\felip\\AppData\\Local\\OpenClawTray\\OpenClaw.Tray.WinUI.exe",
-    "postman": "C:\\Users\\felip\\AppData\\Local\\Postman\\Postman.exe",
-    "idle (python 3.11 64-bit)": "C:\\Users\\felip\\AppData\\Local\\Programs\\Python\\Python311\\pythonw.exe",
-    "python 3.11 (64-bit)": "C:\\Users\\felip\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-    "python 3.11 module docs (64-bit)": "C:\\Users\\felip\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-    "roblox player": "C:\\Users\\felip\\AppData\\Local\\Roblox\\Versions\\version-cec3ad5889b447cf\\RobloxPlayerBeta.exe",
-    "roblox studio": "C:\\Users\\felip\\AppData\\Local\\Roblox\\Versions\\version-d679641ad17741aa\\RobloxStudioBeta.exe",
-    "sox": "C:\\Program Files (x86)\\sox-14-4-2\\sox.exe",
-    "wget": "C:\\Program Files (x86)\\sox-14-4-2\\wget.exe",
-    "ubisoft connect": "C:\\Program Files (x86)\\Ubisoft\\Ubisoft Game Launcher\\UbisoftConnect.exe",
-    "visual studio code": "C:\\Users\\felip\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
-    "windows powershell (x86)": "C:\\Windows\\SysWOW64\\WindowsPowerShell\\v1.0\\powershell.exe",
-    "windows powershell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-    "photoshop - atalho": "D:\\adobe\\Adobe Photoshop 2025\\Photoshop.exe",
-    "spacesniffer - atalho": "C:\\Users\\felip\\Desktop\\app dia dia\\SpaceSniffer.exe",
-    "cpuid cpu-z": "C:\\Program Files\\CPUID\\CPU-Z\\cpuz.exe",
-    "crystaldiskmark8_0_5": "C:\\Users\\felip\\Desktop\\app dia dia\\CrystalDiskMark8_0_5.exe",
-    "equalizerapo64-1.2.1": "C:\\Users\\felip\\Desktop\\app dia dia\\EqualizerAPO64-1.2.1.exe",
-    "nvidia": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\CEF\\NVIDIA App.exe",
-    "pgadmin4-9.3-x64": "C:\\Users\\felip\\Desktop\\app dia dia\\pgadmin4-9.3-x64.exe",
-    "putty - atalho": "C:\\Program Files\\PuTTY\\putty.exe",
-    "spacesniffer": "C:\\Users\\felip\\Desktop\\app dia dia\\SpaceSniffer.exe",
-    "tinytask": "C:\\Users\\felip\\Desktop\\app dia dia\\tinytask.exe",
-    "ultimaker-cura-5.9.0-win64-x64": "C:\\Users\\felip\\Desktop\\app dia dia\\UltiMaker-Cura-5.9.0-win64-X64.exe",
-    "wise disk cleaner": "C:\\Program Files (x86)\\Wise\\Wise Disk Cleaner\\WiseDiskCleaner.exe",
-    "ffmpeg": "C:\\Program Files (x86)\\AirDroid\\IncludeAdb\\ffmpeg.exe",
-    "ffplay": "C:\\Users\\felip\\Desktop\\app dia dia\\BAIXA VIDEOS\\ffmpeg-8.0.1-essentials_build\\bin\\ffplay.exe",
-    "ffprobe": "C:\\Users\\felip\\Desktop\\app dia dia\\BAIXA VIDEOS\\ffmpeg-8.0.1-essentials_build\\bin\\ffprobe.exe",
-    "yt-dlp": "C:\\Users\\felip\\Desktop\\app dia dia\\BAIXA VIDEOS\\ffmpeg-8.0.1-essentials_build\\bin\\yt-dlp.exe",
-    "diskinfo32": "C:\\Users\\felip\\Desktop\\app dia dia\\Nova pasta\\DiskInfo32.exe",
-    "diskinfo64": "C:\\Program Files\\CrystalDiskInfo\\DiskInfo64.exe",
-    "diskinfoa64": "C:\\Users\\felip\\Desktop\\app dia dia\\Nova pasta\\DiskInfoA64.exe",
-    "alertmail": "C:\\Program Files\\CrystalDiskInfo\\CdiResource\\AlertMail.exe",
-    "alertmail4": "C:\\Program Files\\CrystalDiskInfo\\CdiResource\\AlertMail4.exe",
-    "alertmail48": "C:\\Program Files\\CrystalDiskInfo\\CdiResource\\AlertMail48.exe",
-    "opusdec": "C:\\Program Files\\CrystalDiskInfo\\CdiResource\\opus\\opusdec.exe",
-    "officedeploymenttool_17830-20162": "C:\\Users\\felip\\Desktop\\app dia dia\\Office 2024 tutorial de baixar\\officedeploymenttool_17830-20162.exe",
-    "python-3.11.8-amd64": "C:\\Users\\felip\\Desktop\\app dia dia\\progamaçoa\\python-3.11.8-amd64.exe",
-    "virtualbox-7.0.14-161095-win": "C:\\Users\\felip\\Desktop\\app dia dia\\progamaçoa\\VirtualBox-7.0.14-161095-Win.exe",
-    "robloxmulti": "C:\\Users\\felip\\Desktop\\app dia dia\\RobloxMulti\\bin\\RobloxMulti.exe",
-    "wisememoryoptimzer": "C:\\Program Files\\Wise\\Wise Memory Optimizer\\WiseMemoryOptimzer.exe",
-    "equalizerapo-x64-1.4.2": "C:\\Users\\felip\\Desktop\\Aruma microfone\\EqualizerAPO-x64-1.4.2.exe",
-    "librehardwaremonitor": "C:\\Users\\felip\\Desktop\\bachupa meu modelo\\BETA\\monitor\\LibreHardwareMonitor.exe",
-    "git-bash": "C:\\Program Files\\Git\\git-bash.exe",
-    "bash": "C:\\Program Files\\Git\\bin\\bash.exe",
-    "git": "C:\\Program Files\\Git\\cmd\\git.exe",
-    "git-gui": "C:\\Program Files\\Git\\cmd\\git-gui.exe",
-    "git-receive-pack": "C:\\Program Files\\Git\\cmd\\git-receive-pack.exe",
-    "git-upload-pack": "C:\\Program Files\\Git\\cmd\\git-upload-pack.exe",
-    "gitk": "C:\\Program Files\\Git\\cmd\\gitk.exe",
-    "scalar": "C:\\Program Files\\Git\\cmd\\scalar.exe",
-    "tig": "C:\\Program Files\\Git\\cmd\\tig.exe",
-    "python": "C:\\Program Files\\PostgreSQL\\18\\pgAdmin 4\\python\\python.exe",
-    "pythonw": "C:\\Program Files\\PostgreSQL\\18\\pgAdmin 4\\python\\pythonw.exe",
-    "bzip2": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Library\\bin\\bzip2.exe",
-    "bzip2recover": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Library\\bin\\bzip2recover.exe",
-    "lzmadec": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Library\\bin\\lzmadec.exe",
-    "lzmainfo": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Library\\bin\\lzmainfo.exe",
-    "openssl": "C:\\Program Files\\CHITUBOX\\openssl.exe",
-    "sqlite3": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\target-windows-x64\\sqlite3.exe",
-    "tclsh": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Library\\bin\\tclsh.exe",
-    "tclsh86": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Library\\bin\\tclsh86.exe",
-    "tclsh86t": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Library\\bin\\tclsh86t.exe",
-    "wish": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Library\\bin\\wish.exe",
-    "wish86": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Library\\bin\\wish86.exe",
-    "wish86t": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Library\\bin\\wish86t.exe",
-    "xzdec": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Library\\bin\\xzdec.exe",
-    "x86_64-w64-mingw32-nmakehlp": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Library\\lib\\nmake\\x86_64-w64-mingw32-nmakehlp.exe",
-    "2to3": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\2to3.exe",
-    "cffi-gen-src": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\cffi-gen-src.exe",
-    "ct2-fairseq-converter": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\ct2-fairseq-converter.exe",
-    "ct2-marian-converter": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\ct2-marian-converter.exe",
-    "ct2-openai-gpt2-converter": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\ct2-openai-gpt2-converter.exe",
-    "ct2-opennmt-py-converter": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\ct2-opennmt-py-converter.exe",
-    "ct2-opennmt-tf-converter": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\ct2-opennmt-tf-converter.exe",
-    "ct2-opus-mt-converter": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\ct2-opus-mt-converter.exe",
-    "ct2-transformers-converter": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\ct2-transformers-converter.exe",
-    "dashscope": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\dashscope.exe",
-    "distro": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\distro.exe",
-    "dotenv": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\dotenv.exe",
-    "edge-playback": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\edge-playback.exe",
-    "edge-tts": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\edge-tts.exe",
-    "f2py": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\f2py.exe",
-    "fastapi": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\fastapi.exe",
-    "httpx": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\httpx.exe",
-    "idle": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\idle.exe",
-    "idna": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\idna.exe",
-    "imageio_download_bin": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\imageio_download_bin.exe",
-    "imageio_remove_bin": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\imageio_remove_bin.exe",
-    "jsonschema": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\jsonschema.exe",
-    "litellm": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\litellm.exe",
-    "normalizer": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\normalizer.exe",
-    "numpy-config": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\numpy-config.exe",
-    "onnxruntime_test": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\onnxruntime_test.exe",
-    "openai": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\openai.exe",
-    "pip": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\pip.exe",
-    "pip3": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\target-windows-x64\\python\\Scripts\\pip3.exe",
-    "pyav": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\pyav.exe",
-    "pydoc": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\pydoc.exe",
-    "streamlit": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\streamlit.exe",
-    "tabulate": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\tabulate.exe",
-    "tqdm": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\tqdm.exe",
-    "uvicorn": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\uvicorn.exe",
-    "watchmedo": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\watchmedo.exe",
-    "websockets": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\websockets.exe",
-    "wheel": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\wheel.exe",
-    "wsdump": "C:\\Users\\felip\\Desktop\\CANAL AFK\\TESTE MONEY\\lib\\python\\Scripts\\wsdump.exe",
-    "me3_manager - atalho": "D:\\tudo\\MOD DUBLAGUE\\Me3_Manager_1.1.8\\Me3_Manager.exe",
-    "deploytool": "C:\\Program Files (x86)\\Acer\\Care Center\\DeployTool.exe",
-    "listcheck": "C:\\Program Files (x86)\\Acer\\Care Center\\ListCheck.exe",
-    "pscreatedefaultprofile": "C:\\Program Files\\Acer\\NitroSense Service\\PSCreateDefaultProfile.exe",
-    "pslauncher": "C:\\Program Files\\Acer\\NitroSense Service\\PSLauncher.exe",
-    "pssvc": "C:\\Program Files\\Acer\\NitroSense Service\\PSSvc.exe",
-    "pstoastcreator": "C:\\Program Files\\Acer\\NitroSense Service\\PSToastCreator.exe",
-    "upgradetool": "C:\\Program Files (x86)\\Acer\\Care Center\\UpgradeTool.exe",
-    "ccxprocess": "C:\\Program Files (x86)\\Adobe\\Adobe Creative Cloud Experience\\CCXProcess.exe",
-    "node": "C:\\Program Files\\nodejs\\node.exe",
-    "amdcleanuputility": "C:\\Program Files\\AMD\\CIM\\Bin64\\AMDCleanupUtility.exe",
-    "amdinstalluep": "C:\\Program Files\\AMD\\InstallUEP\\AMDInstallUEP.exe",
-    "amdsplashscreen": "C:\\Program Files\\AMD\\CIM\\Bin64\\AMDSplashScreen.exe",
-    "installmanagerapp": "C:\\Program Files\\AMD\\CIM\\Bin64\\InstallManagerApp.exe",
-    "amddmlfilters": "C:\\Program Files\\AMD\\CNext\\CNext\\amddmlfilters.exe",
-    "amdgameconfigserv": "C:\\Program Files\\AMD\\CNext\\CNext\\AMDGameConfigServ.exe",
-    "amdidentifywindow": "C:\\Program Files\\AMD\\CNext\\CNext\\AMDIdentifyWindow.exe",
-    "amdow": "C:\\Program Files\\AMD\\CNext\\CNext\\amdow.exe",
-    "amdrsserv": "C:\\Program Files\\AMD\\CNext\\CNext\\AMDRSServ.exe",
-    "amdrssrcext": "C:\\Program Files\\AMD\\CNext\\CNext\\AMDRSSrcExt.exe",
-    "compressionutility": "C:\\Program Files\\AMD\\CNext\\CNext\\CompressionUtility.exe",
-    "cpumetricsserver": "C:\\Program Files\\AMD\\CNext\\CNext\\CPUMetricsServer.exe",
-    "duplicatedesktop": "C:\\Program Files\\AMD\\CNext\\CNext\\DuplicateDesktop.exe",
-    "eyefinitypro": "C:\\Program Files\\AMD\\CNext\\CNext\\EyefinityPro.exe",
-    "gpuup": "C:\\Program Files\\AMD\\CNext\\CNext\\gpuup.exe",
-    "launcherrsxruntime": "C:\\Program Files\\AMD\\CNext\\CNext\\LauncherRSXRuntime.exe",
-    "mmloaddrv": "C:\\Program Files\\AMD\\CNext\\CNext\\MMLoadDrv.exe",
-    "mmloaddrvpxdiscrete": "C:\\Program Files\\AMD\\CNext\\CNext\\MMLoadDrvPXDiscrete.exe",
-    "presentmon-x64": "C:\\Program Files\\AMD\\CNext\\CNext\\PresentMon-x64.exe",
-    "qtwebengineprocess": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\host-windows-x64\\QtWebEngineProcess.exe",
-    "radeonsoftware": "C:\\Program Files\\AMD\\CNext\\CNext\\RadeonSoftware.exe",
-    "videotrim": "C:\\Program Files\\AMD\\CNext\\CNext\\videotrim.exe",
-    "ziputility": "C:\\Program Files\\AMD\\CNext\\CNext\\ZipUtility.exe",
-    "gfycatwrapper": "C:\\Program Files\\AMD\\CNext\\CNext\\Gfycat\\GfycatWrapper.exe",
-    "giphywrapper": "C:\\Program Files\\AMD\\CNext\\CNext\\giphy\\GiphyWrapper.exe",
-    "restreamapiwrapper": "C:\\Program Files\\AMD\\CNext\\CNext\\restream\\RestreamAPIWrapper.exe",
-    "sinaweibowrapper": "C:\\Program Files\\AMD\\CNext\\CNext\\sinaWeibo\\SinaWeiboWrapper.exe",
-    "streamableapiwrapper": "C:\\Program Files\\AMD\\CNext\\CNext\\streamable\\StreamableAPIWrapper.exe",
-    "youtubeapiwrapper": "C:\\Program Files\\AMD\\CNext\\CNext\\youtube\\YoutubeAPIWrapper.exe",
-    "chrome_pwa_launcher": "C:\\Program Files\\Google\\Chrome\\Application\\155.0.8059.40\\chrome_pwa_launcher.exe",
-    "cadexhost": "C:\\Program Files\\CHITUBOX\\CadExHost.exe",
-    "consolerender": "C:\\Program Files\\CHITUBOX\\ConsoleRender.exe",
-    "licensingtool": "C:\\Program Files\\CHITUBOX\\LicensingTool.exe",
-    "cpuz": "C:\\Program Files\\CPUID\\CPU-Z\\cpuz.exe",
-    "diskmark64": "C:\\Program Files\\CrystalDiskMark9\\DiskMark64.exe",
-    "diskspd64": "C:\\Program Files\\CrystalDiskMark9\\CdmResource\\DiskSpd\\DiskSpd64.exe",
-    "diskspd64l": "C:\\Program Files\\CrystalDiskMark9\\CdmResource\\DiskSpd\\DiskSpd64L.exe",
-    "defraggler64": "C:\\Program Files\\Defraggler\\Defraggler64.exe",
-    "df64": "C:\\Program Files\\Defraggler\\df64.exe",
-    "docker-ai": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-ai.exe",
-    "docker-buildx": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-buildx.exe",
-    "docker-compose": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-compose.exe",
-    "docker-debug": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-debug.exe",
-    "docker-desktop": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-desktop.exe",
-    "docker-dhi": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-dhi.exe",
-    "docker-extension": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-extension.exe",
-    "docker-init": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-init.exe",
-    "docker-mcp": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-mcp.exe",
-    "docker-model": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-model.exe",
-    "docker-offload": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-offload.exe",
-    "docker-pass": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-pass.exe",
-    "docker-sandbox": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-sandbox.exe",
-    "docker-scout": "C:\\Program Files\\Docker\\Docker\\resources\\cli-plugins\\docker-scout.exe",
-    "7zr": "C:\\Program Files\\Docker\\Docker\\7zr.exe",
-    "courgette64": "C:\\Program Files\\Docker\\Docker\\courgette64.exe",
-    "buildkitd": "C:\\Program Files\\Docker\\Docker\\resources\\buildkitd.exe",
-    "com.docker.admin": "C:\\Program Files\\Docker\\Docker\\resources\\com.docker.admin.exe",
-    "com.docker.backend": "C:\\Program Files\\Docker\\Docker\\resources\\com.docker.backend.exe",
-    "com.docker.build": "C:\\Program Files\\Docker\\Docker\\resources\\com.docker.build.exe",
-    "com.docker.diagnose": "C:\\Program Files\\Docker\\Docker\\resources\\com.docker.diagnose.exe",
-    "containerd-shim-runhcs-v1": "C:\\Program Files\\Docker\\Docker\\resources\\containerd-shim-runhcs-v1.exe",
-    "containerd": "C:\\Program Files\\Docker\\Docker\\resources\\containerd.exe",
-    "dockerd": "C:\\Program Files\\Docker\\Docker\\resources\\dockerd.exe",
-    "com.docker.llama-server": "C:\\Program Files\\Docker\\Docker\\resources\\model-runner\\bin\\com.docker.llama-server.exe",
-    "com.docker.nv-gpu-info": "C:\\Program Files\\Docker\\Docker\\resources\\model-runner\\bin\\com.docker.nv-gpu-info.exe",
-    "dotnet": "C:\\Program Files\\dotnet\\dotnet.exe",
-    "apphost": "C:\\Program Files\\dotnet\\packs\\Microsoft.NETCore.App.Host.win-x86\\7.0.20\\runtimes\\win-x86\\native\\apphost.exe",
-    "singlefilehost": "C:\\Program Files\\dotnet\\packs\\Microsoft.NETCore.App.Host.win-x86\\7.0.20\\runtimes\\win-x86\\native\\singlefilehost.exe",
-    "createdump": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\People Playground\\ppgModCompiler\\createdump.exe",
-    "eadestager": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\Destager\\EADestager.exe",
-    "eacefsubprocess": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\EACefSubProcess.exe",
-    "eaconnect_microsoft": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\EAConnect_microsoft.exe",
-    "eadesktop": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\compatibility32\\EADesktop.exe",
-    "eagep": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\EAGEP.exe",
-    "ealauncher": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\EALauncher.exe",
-    "ealocalhostsvc": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\EALocalHostSvc.exe",
-    "errorreporter": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\ErrorReporter.exe",
-    "getgametoken": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\GetGameToken.exe",
-    "link2ea": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\Link2EA.exe",
-    "originlegacycompatibility": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\OriginLegacyCompatibility.exe",
-    "eacoreserver": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\legacyPM\\EACoreServer.exe",
-    "login": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\legacyPM\\Login.exe",
-    "messagedlg": "C:\\Program Files\\Electronic Arts\\EA Desktop\\13.671.0.6184-1774651275\\EA Desktop\\legacyPM\\MessageDlg.exe",
-    "dredge": "C:\\Program Files\\Epic Games\\DREDGEmKMzx\\DREDGE.exe",
-    "eosbootstrapper": "C:\\Program Files (x86)\\Epic Games\\Launcher\\Portal\\Extras\\EOSBootStrapper\\EOSBootStrapper.exe",
-    "idj": "C:\\Program Files\\Epic Games\\IDJ\\IDJ.exe",
-    "deviceselector": "C:\\Program Files\\EqualizerAPO\\DeviceSelector.exe",
-    "editor": "C:\\Program Files\\EqualizerAPO\\Editor.exe",
-    "filmcraft": "C:\\Program Files\\FilmCraft\\filmcraft.exe",
-    "aida64": "C:\\Program Files\\FinalWire\\AIDA64 Extreme\\aida64.exe",
-    "git-lfs": "C:\\Program Files\\Git\\cmd\\git-lfs.exe",
-    "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-    "account_export_tool": "C:\\Program Files\\Google\\Drive File Stream\\account_export_tool.exe",
-    "dfd_mcp_server": "C:\\Program Files\\Google\\Drive File Stream\\dfd_mcp_server.exe",
-    "diagnostic_tool": "C:\\Program Files\\Google\\Drive File Stream\\diagnostic_tool.exe",
-    "googledrivefs": "C:\\Program Files\\Google\\Drive File Stream\\132.0.0.0\\GoogleDriveFS.exe",
-    "switchblade_host": "C:\\Program Files\\Google\\Drive File Stream\\132.0.0.0\\switchblade_host.exe",
-    "gridcraft": "C:\\Program Files\\GridCraft\\gridcraft.exe",
-    "extexport": "C:\\Program Files (x86)\\Internet Explorer\\ExtExport.exe",
-    "ieinstal": "C:\\Program Files (x86)\\Internet Explorer\\ieinstal.exe",
-    "ielowutil": "C:\\Program Files (x86)\\Internet Explorer\\ielowutil.exe",
-    "iexplore": "C:\\Program Files (x86)\\Internet Explorer\\iexplore.exe",
-    "jabswitch": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\jabswitch.exe",
-    "jaccessinspector": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jaccessinspector.exe",
-    "jaccesswalker": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jaccesswalker.exe",
-    "jar": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jar.exe",
-    "jarsigner": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jarsigner.exe",
-    "java": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\java.exe",
-    "javac": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\javac.exe",
-    "javadoc": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\javadoc.exe",
-    "javap": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\javap.exe",
-    "javaw": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\javaw.exe",
-    "jconsole": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jconsole.exe",
-    "jdb": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jdb.exe",
-    "jdeprscan": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jdeprscan.exe",
-    "jdeps": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jdeps.exe",
-    "jfr": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jfr.exe",
-    "jhsdb": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jhsdb.exe",
-    "jimage": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jimage.exe",
-    "jinfo": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jinfo.exe",
-    "jlink": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jlink.exe",
-    "jmap": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jmap.exe",
-    "jmod": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jmod.exe",
-    "jnativescan": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jnativescan.exe",
-    "jpackage": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jpackage.exe",
-    "jps": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jps.exe",
-    "jrunscript": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jrunscript.exe",
-    "jshell": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jshell.exe",
-    "jstack": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jstack.exe",
-    "jstat": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jstat.exe",
-    "jstatd": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jstatd.exe",
-    "jwebserver": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\jwebserver.exe",
-    "keytool": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\keytool.exe",
-    "kinit": "C:\\Program Files\\PostgreSQL\\18\\pgAdmin 4\\python\\kinit.exe",
-    "klist": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\klist.exe",
-    "ktab": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\ktab.exe",
-    "rmiregistry": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\rmiregistry.exe",
-    "serialver": "C:\\Program Files\\Java\\latest\\jdk-25\\bin\\serialver.exe",
-    "java-rmi": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\java-rmi.exe",
-    "javacpl": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\javacpl.exe",
-    "javaws": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\javaws.exe",
-    "jjs": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\jjs.exe",
-    "jp2launcher": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\jp2launcher.exe",
-    "orbd": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\orbd.exe",
-    "pack200": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\pack200.exe",
-    "policytool": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\policytool.exe",
-    "rmid": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\rmid.exe",
-    "servertool": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\servertool.exe",
-    "tnameserv": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\tnameserv.exe",
-    "unpack200": "C:\\Program Files\\Java\\latest\\jre-1.8\\bin\\unpack200.exe",
-    "sqldumper": "C:\\Program Files (x86)\\Microsoft Analysis Services\\AS OLEDB\\110\\SQLDumper.exe",
-    "appsharinghookcontroller64": "C:\\Program Files\\Microsoft Office\\Office16\\AppSharingHookController64.exe",
-    "excelcnv": "C:\\Program Files\\Microsoft Office\\Office16\\excelcnv.exe",
-    "lync": "C:\\Program Files\\Microsoft Office\\Office16\\lync.exe",
-    "lync99": "C:\\Program Files\\Microsoft Office\\Office16\\lync99.exe",
-    "lynchtmlconv": "C:\\Program Files\\Microsoft Office\\Office16\\lynchtmlconv.exe",
-    "misc": "C:\\Program Files\\Microsoft Office\\Office16\\misc.exe",
-    "msoev": "C:\\Program Files\\Microsoft Office\\Office16\\msoev.exe",
-    "msoia": "C:\\Program Files\\Microsoft Office\\Office16\\msoia.exe",
-    "msotd": "C:\\Program Files\\Microsoft Office\\Office16\\msotd.exe",
-    "ocpubmgr": "C:\\Program Files\\Microsoft Office\\Office16\\OcPubMgr.exe",
-    "protocolhandler": "C:\\Program Files\\Microsoft Office\\Office16\\protocolhandler.exe",
-    "ucmapi": "C:\\Program Files\\Microsoft Office\\Office16\\UcMapi.exe",
-    "wordconv": "C:\\Program Files\\Microsoft Office\\Office16\\Wordconv.exe",
-    "microsoft.mashup.container": "C:\\Program Files\\Microsoft Office\\Office16\\ADDINS\\Microsoft Power Query for Excel Integrated\\bin\\Microsoft.Mashup.Container.exe",
-    "microsoft.mashup.container.netfx40": "C:\\Program Files\\Microsoft Office\\Office16\\ADDINS\\Microsoft Power Query for Excel Integrated\\bin\\Microsoft.Mashup.Container.NetFX40.exe",
-    "microsoft.mashup.container.netfx45": "C:\\Program Files\\Microsoft Office\\Office16\\ADDINS\\Microsoft Power Query for Excel Integrated\\bin\\Microsoft.Mashup.Container.NetFX45.exe",
-    "onedrive.app": "C:\\Program Files\\Microsoft OneDrive\\OneDrive.App.exe",
-    "filecoauth": "C:\\Program Files\\Microsoft OneDrive\\26.178.0913.0007\\FileCoAuth.exe",
-    "filesyncconfig": "C:\\Program Files\\Microsoft OneDrive\\26.178.0913.0007\\FileSyncConfig.exe",
-    "onedrivefilelauncher": "C:\\Program Files\\Microsoft OneDrive\\26.178.0913.0007\\OneDriveFileLauncher.exe",
-    "onedrivelauncher": "C:\\Program Files\\Microsoft OneDrive\\26.178.0913.0007\\OneDriveLauncher.exe",
-    "sqlservr": "C:\\Program Files\\Microsoft SQL Server\\170\\LocalDB\\Binn\\sqlservr.exe",
-    "sqllocaldb": "C:\\Program Files\\Microsoft SQL Server\\170\\Tools\\Binn\\SqlLocalDB.exe",
-    "sqlwriter": "C:\\Program Files\\Microsoft SQL Server\\90\\Shared\\sqlwriter.exe",
-    "pingsender": "C:\\Program Files\\Mozilla Firefox\\pingsender.exe",
-    "plugin-container": "C:\\Program Files\\Mozilla Firefox\\plugin-container.exe",
-    "private_browsing": "C:\\Program Files\\Mozilla Firefox\\private_browsing.exe",
-    "desktop-launcher": "C:\\Program Files\\Mozilla Firefox\\desktop-launcher\\desktop-launcher.exe",
-    "gup": "C:\\Program Files\\Notepad++\\updater\\GUP.exe",
-    "npfinstall": "C:\\Program Files\\Npcap\\NPFInstall.exe",
-    "frameview_x64": "C:\\Program Files\\NVIDIA Corporation\\FrameView\\FrameView_x64.exe",
-    "enablevroverlay_x64": "C:\\Program Files\\NVIDIA Corporation\\FrameView\\bin\\EnableVROverlay_x64.exe",
-    "fv_unit_test_cpu_gpu_metrics": "C:\\Program Files\\NVIDIA Corporation\\FrameView\\bin\\FV_Unit_Test_CPU_GPU_Metrics.exe",
-    "presentmon_x64": "C:\\Program Files\\NVIDIA Corporation\\FrameView\\bin\\PresentMon_x64.exe",
-    "cudagpuinfodumper": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\target-windows-x64\\CudaGpuInfoDumper.exe",
-    "nsys": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\target-windows-x64\\nsys.exe",
-    "ncu-ui": "C:\\Program Files\\NVIDIA Corporation\\Nsight Compute 2025.2.0\\host\\windows-desktop-win7-x64\\ncu-ui.exe",
-    "qdstrmimporter": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\host-windows-x64\\QdstrmImporter.exe",
-    "ncu": "C:\\Program Files\\NVIDIA Corporation\\Nsight Compute 2025.2.0\\target\\windows-desktop-win7-x64\\ncu.exe",
-    "dumptimeline": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\host-windows-x64\\DumpTimeline.exe",
-    "importnvtxt": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\host-windows-x64\\ImportNvtxt.exe",
-    "nsys-ui": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\host-windows-x64\\nsys-ui.exe",
-    "resolvesymbols": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\host-windows-x64\\ResolveSymbols.exe",
-    "venvlauncher": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\target-windows-x64\\python\\bin\\venvlauncher.exe",
-    "pip3.12": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\target-windows-x64\\python\\Scripts\\pip3.12.exe",
-    "nvml_plugin": "C:\\Program Files\\NVIDIA Corporation\\Nsight Systems 2026.2.1\\target-windows-x64\\plugins\\nvml_metrics\\nvml_plugin.exe",
-    "nvcontainer": "C:\\Program Files\\NVIDIA Corporation\\NvContainer\\nvcontainer.exe",
-    "darkmodecheck": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\DarkModeCheck.exe",
-    "nvidia overlay": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\CEF\\NVIDIA Overlay.exe",
-    "nvidia app permission": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\CEF\\NvidiaAppPermissionOc\\NVIDIA App Permission.exe",
-    "nvoawrappercache": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\NvBackend\\ApplicationOntology\\NvOAWrapperCache.exe",
-    "oawrapper": "C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\NvBackend\\ApplicationOntology\\OAWrapper.exe",
-    "vboxaudiotest": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxAudioTest.exe",
-    "vboxautostartsvc": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxAutostartSvc.exe",
-    "vboxballoonctrl": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxBalloonCtrl.exe",
-    "vboxbugreport": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxBugReport.exe",
-    "vboxdrvinst": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxDrvInst.exe",
-    "vboxdtrace": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxDTrace.exe",
-    "vboxheadless": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxHeadless.exe",
-    "vboxmanage": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxManage.exe",
-    "vboxnetdhcp": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxNetDHCP.exe",
-    "vboxnetnat": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxNetNAT.exe",
-    "vboxsds": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxSDS.exe",
-    "vboxsvc": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxSVC.exe",
-    "vboxwebsrv": "C:\\Program Files\\Oracle\\VirtualBox\\VBoxWebSrv.exe",
-    "virtualbox": "C:\\Program Files\\Oracle\\VirtualBox\\VirtualBox.exe",
-    "virtualboxvm": "C:\\Program Files\\Oracle\\VirtualBox\\VirtualBoxVM.exe",
-    "os2_util": "C:\\Program Files\\Oracle\\VirtualBox\\UnattendedTemplates\\os2_util.exe",
-    "pawnioutil": "C:\\Program Files\\PawnIO\\PawnIOUtil.exe",
-    "pcsx2-qt": "C:\\Program Files\\PCSX2\\pcsx2-qt.exe",
-    "photocraft": "C:\\Program Files\\PhotoCraft\\photocraft.exe",
-    "clusterdb": "C:\\Program Files\\PostgreSQL\\18\\bin\\clusterdb.exe",
-    "createdb": "C:\\Program Files\\PostgreSQL\\18\\bin\\createdb.exe",
-    "createuser": "C:\\Program Files\\PostgreSQL\\18\\bin\\createuser.exe",
-    "dropdb": "C:\\Program Files\\PostgreSQL\\18\\bin\\dropdb.exe",
-    "dropuser": "C:\\Program Files\\PostgreSQL\\18\\bin\\dropuser.exe",
-    "ecpg": "C:\\Program Files\\PostgreSQL\\18\\bin\\ecpg.exe",
-    "initdb": "C:\\Program Files\\PostgreSQL\\18\\bin\\initdb.exe",
-    "oid2name": "C:\\Program Files\\PostgreSQL\\18\\bin\\oid2name.exe",
-    "pgbench": "C:\\Program Files\\PostgreSQL\\18\\bin\\pgbench.exe",
-    "pg_amcheck": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_amcheck.exe",
-    "pg_archivecleanup": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_archivecleanup.exe",
-    "pg_basebackup": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_basebackup.exe",
-    "pg_checksums": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_checksums.exe",
-    "pg_combinebackup": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_combinebackup.exe",
-    "pg_config": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_config.exe",
-    "pg_controldata": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_controldata.exe",
-    "pg_createsubscriber": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_createsubscriber.exe",
-    "pg_ctl": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_ctl.exe",
-    "pg_dump": "C:\\Program Files\\PostgreSQL\\18\\pgAdmin 4\\runtime\\pg_dump.exe",
-    "pg_dumpall": "C:\\Program Files\\PostgreSQL\\18\\pgAdmin 4\\runtime\\pg_dumpall.exe",
-    "pg_isready": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_isready.exe",
-    "pg_receivewal": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_receivewal.exe",
-    "pg_recvlogical": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_recvlogical.exe",
-    "pg_resetwal": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_resetwal.exe",
-    "pg_restore": "C:\\Program Files\\PostgreSQL\\18\\pgAdmin 4\\runtime\\pg_restore.exe",
-    "pg_rewind": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_rewind.exe",
-    "pg_test_fsync": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_test_fsync.exe",
-    "pg_test_timing": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_test_timing.exe",
-    "pg_upgrade": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_upgrade.exe",
-    "pg_verifybackup": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_verifybackup.exe",
-    "pg_waldump": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_waldump.exe",
-    "pg_walsummary": "C:\\Program Files\\PostgreSQL\\18\\bin\\pg_walsummary.exe",
-    "postgres": "C:\\Program Files\\PostgreSQL\\18\\bin\\postgres.exe",
-    "psql": "C:\\Program Files\\PostgreSQL\\18\\pgAdmin 4\\runtime\\psql.exe",
-    "reindexdb": "C:\\Program Files\\PostgreSQL\\18\\bin\\reindexdb.exe",
-    "stackbuilder": "C:\\Program Files\\PostgreSQL\\18\\bin\\stackbuilder.exe",
-    "vacuumdb": "C:\\Program Files\\PostgreSQL\\18\\bin\\vacuumdb.exe",
-    "vacuumlo": "C:\\Program Files\\PostgreSQL\\18\\bin\\vacuumlo.exe",
-    "isolationtester": "C:\\Program Files\\PostgreSQL\\18\\lib\\pgxs\\src\\test\\isolation\\isolationtester.exe",
-    "pg_isolation_regress": "C:\\Program Files\\PostgreSQL\\18\\lib\\pgxs\\src\\test\\isolation\\pg_isolation_regress.exe",
-    "pg_regress": "C:\\Program Files\\PostgreSQL\\18\\lib\\pgxs\\src\\test\\regress\\pg_regress.exe",
-    "pgadmin4": "C:\\Program Files\\PostgreSQL\\18\\pgAdmin 4\\runtime\\pgAdmin4.exe",
-    "plink": "C:\\Program Files\\PuTTY\\plink.exe",
-    "pscp": "C:\\Program Files\\PuTTY\\pscp.exe",
-    "rpi-imager-callback-relay": "C:\\Program Files\\Raspberry Pi Ltd\\Imager\\rpi-imager-callback-relay.exe",
-    "rpi-imager": "C:\\Program Files\\Raspberry Pi Ltd\\Imager\\rpi-imager.exe",
-    "elevate": "C:\\Program Files\\Vortex\\resources\\elevate.exe",
-    "launchersupport": "C:\\Program Files\\Roberts Space Industries\\RSI Launcher\\resources\\LauncherSupport.exe",
-    "launcher": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\launcher.exe",
-    "rockstarerrorhandler": "C:\\Program Files\\Rockstar Games\\Launcher\\ThirdParty\\Crashpad\\RockstarErrorHandler.exe",
-    "tailscale-ipn": "C:\\Program Files\\Tailscale\\tailscale-ipn.exe",
-    "tailscaled": "C:\\Program Files\\Tailscale\\tailscaled.exe",
-    "teamviewer_desktop": "C:\\Program Files\\TeamViewer\\TeamViewer_Desktop.exe",
-    "teamviewer_note": "C:\\Program Files\\TeamViewer\\TeamViewer_Note.exe",
-    "tv_w32": "C:\\Program Files\\TeamViewer\\tv_w32.exe",
-    "tv_x64": "C:\\Program Files\\TeamViewer\\tv_x64.exe",
-    "writedump": "C:\\Program Files\\TeamViewer\\WriteDump.exe",
-    "teracopy": "C:\\Program Files\\TeraCopy\\32-bit\\TeraCopy.exe",
-    "curaengine": "C:\\Program Files\\UltiMaker Cura 5.13.0\\CuraEngine.exe",
-    "ultimaker-cura": "C:\\Program Files\\UltiMaker Cura 5.13.0\\UltiMaker-Cura.exe",
-    "dpinst-amd64": "C:\\Program Files\\UltiMaker Cura 5.13.0\\share\\windows\\arduino\\dpinst-amd64.exe",
-    "dpinst-x86": "C:\\Program Files\\UltiMaker Cura 5.13.0\\share\\windows\\arduino\\dpinst-x86.exe",
-    "audioendpointtool": "C:\\Program Files\\Voicemod V3\\driver\\AudioEndPointTool.exe",
-    "voicemodcon": "C:\\Program Files\\Voicemod V3\\driver\\voicemodcon.exe",
-    "dotnetprobe": "C:\\Program Files\\Vortex\\resources\\app.asar.unpacked\\assets\\dotnetprobe.exe",
-    "divine": "C:\\Program Files\\Vortex\\resources\\app.asar.unpacked\\bundledPlugins\\game-baldursgate3\\tools\\divine.exe",
-    "arctool": "C:\\Program Files\\Vortex\\resources\\app.asar.unpacked\\bundledPlugins\\mtframework-arc-support\\ARCtool.exe",
-    "windowsdesktop-runtime-win-x64": "C:\\Program Files\\Vortex\\resources\\temp\\windowsdesktop-runtime-win-x64.exe",
-    "configsecuritypolicy": "C:\\Program Files\\Windows Defender\\ConfigSecurityPolicy.exe",
-    "mipdlp": "C:\\Program Files\\Windows Defender\\MipDlp.exe",
-    "mpcopyaccelerator": "C:\\Program Files\\Windows Defender\\MpCopyAccelerator.exe",
-    "mpextms": "C:\\Program Files\\Windows Defender\\mpextms.exe",
-    "msmpeng": "C:\\Program Files\\Windows Defender\\MsMpEng.exe",
-    "nissrv": "C:\\Program Files\\Windows Defender\\NisSrv.exe",
-    "offlinescannershell": "C:\\Program Files\\Windows Defender\\Offline\\OfflineScannerShell.exe",
-    "wab": "C:\\Program Files (x86)\\Windows Mail\\wab.exe",
-    "wabmig": "C:\\Program Files (x86)\\Windows Mail\\wabmig.exe",
-    "wmlaunch": "C:\\Program Files (x86)\\Windows Media Player\\wmlaunch.exe",
-    "rar": "C:\\Program Files\\WinRAR\\Rar.exe",
-    "unrar": "C:\\Program Files\\WinRAR\\UnRAR.exe",
-    "capinfos": "C:\\Program Files\\Wireshark\\capinfos.exe",
-    "captype": "C:\\Program Files\\Wireshark\\captype.exe",
-    "dumpcap": "C:\\Program Files\\Wireshark\\dumpcap.exe",
-    "editcap": "C:\\Program Files\\Wireshark\\editcap.exe",
-    "mergecap": "C:\\Program Files\\Wireshark\\mergecap.exe",
-    "mmdbresolve": "C:\\Program Files\\Wireshark\\mmdbresolve.exe",
-    "npcap-1.88": "C:\\Program Files\\Wireshark\\npcap-1.88.exe",
-    "randpkt": "C:\\Program Files\\Wireshark\\randpkt.exe",
-    "rawshark": "C:\\Program Files\\Wireshark\\rawshark.exe",
-    "reordercap": "C:\\Program Files\\Wireshark\\reordercap.exe",
-    "sharkd": "C:\\Program Files\\Wireshark\\sharkd.exe",
-    "text2pcap": "C:\\Program Files\\Wireshark\\text2pcap.exe",
-    "tshark": "C:\\Program Files\\Wireshark\\tshark.exe",
-    "androiddump": "C:\\Program Files\\Wireshark\\extcap\\androiddump.exe",
-    "ciscodump": "C:\\Program Files\\Wireshark\\extcap\\ciscodump.exe",
-    "etwdump": "C:\\Program Files\\Wireshark\\extcap\\etwdump.exe",
-    "randpktdump": "C:\\Program Files\\Wireshark\\extcap\\randpktdump.exe",
-    "sshdump": "C:\\Program Files\\Wireshark\\extcap\\sshdump.exe",
-    "udpdump": "C:\\Program Files\\Wireshark\\extcap\\udpdump.exe",
-    "wifidump": "C:\\Program Files\\Wireshark\\extcap\\wifidump.exe",
-    "msrdc": "C:\\Program Files\\WSL\\msrdc.exe",
-    "wsl": "C:\\Program Files\\WSL\\wsl.exe",
-    "wslg": "C:\\Program Files\\WSL\\wslg.exe",
-    "wslhost": "C:\\Program Files\\WSL\\wslhost.exe",
-    "wslrelay": "C:\\Program Files\\WSL\\wslrelay.exe",
-    "wslsettings": "C:\\Program Files\\WSL\\wslsettings\\wslsettings.exe",
-    "accapplauncher": "C:\\Program Files (x86)\\Acer\\Care Center\\ACCAppLauncher.exe",
-    "accnvmedst": "C:\\Program Files (x86)\\Acer\\Care Center\\AccNvmeDST.exe",
-    "accstd": "C:\\Program Files (x86)\\Acer\\Care Center\\ACCStd.exe",
-    "accsvc": "C:\\Program Files (x86)\\Acer\\Care Center\\ACCSvc.exe",
-    "accublauncher": "C:\\Program Files (x86)\\Acer\\Care Center\\ACCUBLauncher.exe",
-    "fub": "C:\\Program Files (x86)\\Acer\\Care Center\\FUB.exe",
-    "getfub": "C:\\Program Files (x86)\\Acer\\Care Center\\GetFUB.exe",
-    "idcard": "C:\\Program Files (x86)\\Acer\\Care Center\\IDCard.exe",
-    "ram_test": "C:\\Program Files (x86)\\Acer\\Care Center\\RAM_TEST.exe",
-    "smartctl-nc": "C:\\Program Files (x86)\\Acer\\Care Center\\smartmontools\\bin\\smartctl-nc.exe",
-    "smartctl": "C:\\Program Files (x86)\\Acer\\Care Center\\smartmontools\\bin\\smartctl.exe",
-    "smartd": "C:\\Program Files (x86)\\Acer\\Care Center\\smartmontools\\bin\\smartd.exe",
-    "wtssendmsg": "C:\\Program Files (x86)\\Acer\\Care Center\\smartmontools\\bin\\wtssendmsg.exe",
-    "aapt": "C:\\Program Files (x86)\\AirDroid\\IncludeAdb\\aapt.exe",
-    "airdroid_adb": "C:\\Program Files (x86)\\AirDroid\\IncludeAdb\\AirDroid_adb.exe",
-    "ffmpeg_amr": "C:\\Program Files (x86)\\AirDroid\\IncludeAdb\\ffmpeg_amr.exe",
-    "attackshark": "C:\\Program Files (x86)\\Attack Shark Software\\AttackShark.exe",
-    "easyanticheat": "C:\\Program Files (x86)\\EasyAntiCheat\\EasyAntiCheat.exe",
-    "easyanticheat_eos": "C:\\Program Files (x86)\\EasyAntiCheat_EOS\\EasyAntiCheat_EOS.exe",
-    "eosoverlayrenderer-win32-shipping": "C:\\Program Files (x86)\\Epic Games\\Launcher\\Portal\\Extras\\Overlay\\EOSOverlayRenderer-Win32-Shipping.exe",
-    "eosoverlayrenderer-win64-shipping": "C:\\Program Files (x86)\\Epic Games\\Launcher\\Portal\\Extras\\Overlay\\EOSOverlayRenderer-Win64-Shipping.exe",
-    "epicgameslauncher": "C:\\Program Files (x86)\\Epic Games\\Launcher\\Portal\\Binaries\\Win64\\EpicGamesLauncher.exe",
-    "unrealenginelauncher": "C:\\Program Files (x86)\\Epic Games\\Launcher\\Engine\\Binaries\\Win64\\UnrealEngineLauncher.exe",
-    "unrealversionselector": "C:\\Program Files (x86)\\Epic Games\\Launcher\\Engine\\Binaries\\Win64\\UnrealVersionSelector.exe",
-    "installchainer": "C:\\Program Files (x86)\\Epic Games\\Launcher\\Portal\\Extras\\EOS\\InstallChainer.exe",
-    "remote_assistance_host": "C:\\Program Files (x86)\\Google\\Chrome Remote Desktop\\154.0.8037.40\\remote_assistance_host.exe",
-    "remote_assistance_host_uiaccess": "C:\\Program Files (x86)\\Google\\Chrome Remote Desktop\\154.0.8037.40\\remote_assistance_host_uiaccess.exe",
-    "remote_open_url": "C:\\Program Files (x86)\\Google\\Chrome Remote Desktop\\154.0.8037.40\\remote_open_url.exe",
-    "remote_security_key": "C:\\Program Files (x86)\\Google\\Chrome Remote Desktop\\154.0.8037.40\\remote_security_key.exe",
-    "remote_webauthn": "C:\\Program Files (x86)\\Google\\Chrome Remote Desktop\\154.0.8037.40\\remote_webauthn.exe",
-    "remoting_desktop": "C:\\Program Files (x86)\\Google\\Chrome Remote Desktop\\154.0.8037.40\\remoting_desktop.exe",
-    "remoting_host": "C:\\Program Files (x86)\\Google\\Chrome Remote Desktop\\154.0.8037.40\\remoting_host.exe",
-    "remoting_native_messaging_host": "C:\\Program Files (x86)\\Google\\Chrome Remote Desktop\\154.0.8037.40\\remoting_native_messaging_host.exe",
-    "remoting_start_host": "C:\\Program Files (x86)\\Google\\Chrome Remote Desktop\\154.0.8037.40\\remoting_start_host.exe",
-    "gpu-z": "C:\\Program Files (x86)\\GPU-Z\\GPU-Z.exe",
-    "copilotapp": "C:\\Program Files (x86)\\Microsoft\\EdgeCore\\Optimized\\copilotapp.exe",
-    "cookie_exporter": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\cookie_exporter.exe",
-    "ie_to_edge_stub": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\BHO\\ie_to_edge_stub.exe",
-    "copilotapphost": "C:\\Program Files (x86)\\Microsoft\\Copilot\\Application\\undocked_copilot\\copilotapphost.exe",
-    "msedge": "C:\\Program Files (x86)\\Microsoft\\EdgeCore\\Optimized\\msedge.exe",
-    "msedge_pwa_launcher": "C:\\Program Files (x86)\\Microsoft\\EdgeCore\\Optimized\\msedge_pwa_launcher.exe",
-    "passkey_authenticator_plugin": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\155.0.4283.45\\passkey_authenticator_plugin.exe",
-    "mscopilot": "C:\\Program Files (x86)\\Microsoft\\EdgeCore\\Optimized\\mscopilot.exe",
-    "msedgewebview2": "C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\155.0.4283.45\\msedgewebview2.exe",
-    "microsoftedgecomregistershellarm64": "C:\\Program Files (x86)\\Microsoft\\EdgeUpdate\\1.3.287.9\\MicrosoftEdgeComRegisterShellARM64.exe",
-    "microsoftedge_x64_155.0.4283.45_154.0.4258.62": "C:\\Program Files (x86)\\Microsoft\\EdgeUpdate\\Download\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}\\155.0.4283.45\\MicrosoftEdge_X64_155.0.4283.45_154.0.4258.62.exe",
-    "copilotundockedhost_x64_155.0.4283.45": "C:\\Program Files (x86)\\Microsoft\\EdgeUpdate\\Download\\{C50565E9-CCCF-44B4-BA15-5AC5C6569197}\\155.0.4283.45\\CopilotUndockedHost_X64_155.0.4283.45.exe",
-    "microsoftedge_x64_155.0.4283.45": "C:\\Program Files (x86)\\Microsoft\\EdgeUpdate\\Download\\{C50565E9-CCCF-44B4-BA15-5AC5C6569197}\\155.0.4283.45\\MicrosoftEdge_X64_155.0.4283.45.exe",
-    "appsharinghookcontroller": "C:\\Program Files (x86)\\Microsoft Office\\Office16\\AppSharingHookController.exe",
-    "common.dbconnection": "C:\\Program Files (x86)\\Microsoft Office\\Office16\\DCF\\Common.DBConnection.exe",
-    "common.dbconnection64": "C:\\Program Files (x86)\\Microsoft Office\\Office16\\DCF\\Common.DBConnection64.exe",
-    "common.showhelp": "C:\\Program Files (x86)\\Microsoft Office\\Office16\\DCF\\Common.ShowHelp.exe",
-    "filecompare": "C:\\Program Files (x86)\\Microsoft Office\\Office16\\DCF\\filecompare.exe",
-    "mobarte": "C:\\Program Files (x86)\\Mobatek\\MobaXterm\\MobaRTE.exe",
-    "nsight.coredumploader": "C:\\Program Files (x86)\\NVIDIA Corporation\\Nsight Visual Studio Edition 2025.2\\Monitor\\Common\\Nsight.CoreDumpLoader.exe",
-    "nsight.monitor": "C:\\Program Files (x86)\\NVIDIA Corporation\\Nsight Visual Studio Edition 2025.2\\Monitor\\Common\\Nsight.Monitor.exe",
-    "nvda.gpu.debugtool": "C:\\Program Files (x86)\\NVIDIA Corporation\\Nsight Visual Studio Edition 2025.2\\Monitor\\Common\\Nvda.Gpu.DebugTool.exe",
-    "nvda.gpu.configuration.dump": "C:\\Program Files (x86)\\NVIDIA Corporation\\Nsight Visual Studio Edition 2025.2\\Monitor\\Common\\Injection64\\Nvda.Gpu.Configuration.Dump.exe",
-    "nvda.processinfo": "C:\\Program Files (x86)\\NVIDIA Corporation\\Nsight Visual Studio Edition 2025.2\\Monitor\\Common\\Injection64\\Nvda.ProcessInfo.exe",
-    "oalinst": "C:\\Program Files (x86)\\OpenAL\\oalinst.exe",
-    "robloxplayerbeta": "C:\\Program Files (x86)\\Roblox\\Versions\\version-36a2600cebf1487d\\RobloxPlayerBeta.exe",
-    "gameoverlayui64": "C:\\Program Files (x86)\\Steam\\gameoverlayui64.exe",
-    "steamerrorreporter": "C:\\Program Files (x86)\\Steam\\steamerrorreporter.exe",
-    "steamerrorreporter64": "C:\\Program Files (x86)\\Steam\\steamerrorreporter64.exe",
-    "steamsysinfo": "C:\\Program Files (x86)\\Steam\\steamsysinfo.exe",
-    "writeminidump": "C:\\Program Files (x86)\\Steam\\WriteMiniDump.exe",
-    "fossilize-replay": "C:\\Program Files (x86)\\Steam\\bin\\fossilize-replay.exe",
-    "fossilize-replay64": "C:\\Program Files (x86)\\Steam\\bin\\fossilize-replay64.exe",
-    "secure_desktop_capture": "C:\\Program Files (x86)\\Steam\\bin\\secure_desktop_capture.exe",
-    "steamxboxutil": "C:\\Program Files (x86)\\Steam\\bin\\steamxboxutil.exe",
-    "steamxboxutil64": "C:\\Program Files (x86)\\Steam\\bin\\steamxboxutil64.exe",
-    "steam_monitor": "C:\\Program Files (x86)\\Steam\\bin\\steam_monitor.exe",
-    "x64launcher": "C:\\Program Files (x86)\\Steam\\bin\\x64launcher.exe",
-    "x86launcher": "C:\\Program Files (x86)\\Steam\\bin\\x86launcher.exe",
-    "swiss selector": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Car Mechanic Simulator 2018\\cms2018_Data\\Managed\\Swiss Selector.exe",
-    "gamble with your friends": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Gamble With Your Friends\\Gamble With Your Friends.exe",
-    "geareo": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Geareo Demo\\geareo.exe",
-    "kingdomtwocrowns": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Kingdom Two Crowns\\KingdomTwoCrowns.exe",
-    "people playground": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\People Playground\\People Playground.exe",
-    "ppgmodcompiler": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\People Playground\\ppgModCompiler\\PPGModCompiler.exe",
-    "scritchyscratchy": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Scritchy Scratchy\\ScritchyScratchy.exe",
-    "stardewmoddingapi": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Stardew Valley\\StardewModdingAPI.exe",
-    "ndp462-kb3151800-x86-x64-allos-enu": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Steamworks Shared\\_CommonRedist\\DotNet\\4.6\\NDP462-KB3151800-x86-x64-AllOS-ENU.exe",
-    "upload labs": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Upload Labs\\Upload Labs.exe",
-    "wallpaper32": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\wallpaper32.exe",
-    "wallpaper64": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\wallpaper64.exe",
-    "applicationwallpaperinject32": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\bin\\applicationwallpaperinject32.exe",
-    "applicationwallpaperinject64": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\bin\\applicationwallpaperinject64.exe",
-    "apputil32": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\bin\\apputil32.exe",
-    "diagnostics32": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\bin\\diagnostics32.exe",
-    "diagnostics64": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\bin\\diagnostics64.exe",
-    "edgewallpaper64": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\bin\\edgewallpaper64.exe",
-    "resourcecompiler32": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\bin\\resourcecompiler32.exe",
-    "resourcecompiler64": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\bin\\resourcecompiler64.exe",
-    "wallpaperui": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\bin\\wallpaperui.exe",
-    "webwallpaper64": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\bin\\webwallpaper64.exe",
-    "winrtutil32": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\bin\\winrtutil32.exe",
-    "winrtutil64": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\distribution\\bin\\winrtutil64.exe",
-    "sheep": "C:\\Program Files (x86)\\Steam\\steamapps\\common\\wallpaper_engine\\projects\\defaultprojects\\sheep\\sheep.exe",
-    "ubisoftconnect": "C:\\Program Files (x86)\\Ubisoft\\Ubisoft Game Launcher\\UbisoftConnect.exe",
-    "ubisoftextension": "C:\\Program Files (x86)\\Ubisoft\\Ubisoft Game Launcher\\UbisoftExtension.exe",
-    "ubisoftgamelauncher": "C:\\Program Files (x86)\\Ubisoft\\Ubisoft Game Launcher\\UbisoftGameLauncher.exe",
-    "ubisoftgamelauncher64": "C:\\Program Files (x86)\\Ubisoft\\Ubisoft Game Launcher\\UbisoftGameLauncher64.exe",
-    "upc": "C:\\Program Files (x86)\\Ubisoft\\Ubisoft Game Launcher\\upc.exe",
-    "uplaywebcore": "C:\\Program Files (x86)\\Ubisoft\\Ubisoft Game Launcher\\UplayWebCore.exe",
-    "wisedatarecovery": "C:\\Program Files (x86)\\Wise\\Wise Data Recovery\\WiseDataRecovery.exe",
-    "wisediskcleaner": "C:\\Program Files (x86)\\Wise\\Wise Disk Cleaner\\WiseDiskCleaner.exe",
-    "wisedeleter": "C:\\Program Files (x86)\\Wise\\Wise Force Deleter\\WiseDeleter.exe",
-    "wisefd": "C:\\Program Files (x86)\\Wise\\Wise Force Deleter\\wisefd.exe"
-}
-```
-
-
-==================================================
- ARQUIVO: .\DADOS\config_paths.json
-==================================================
-
-```text
-{"ssd_path": "C:/modelos", "hd_path": "D:/modelosgrades"}
-```
-
-
-==================================================
- ARQUIVO: .\DADOS\jarvis_identity.json
-==================================================
-
-```text
-{
-    "cpu_modelo": "AMD Ryzen 5 3550H with Radeon Vega Mobile Gfx",
-    "cpu_cores": "4 cores / 8 threads",
-    "gpu_modelo": "NVIDIA GeForce GTX 1650",
-    "vram_total_gb": 4.0,
-    "ram_total_gb": 29.94,
-    "os_versao": "Windows 11",
-    "mapeado_em": "Felipe"
-}
-```
-
-
-==================================================
- ARQUIVO: .\DADOS\lembretes.json
-==================================================
-
-```text
-[
-  {
-    "id": "rem_001",
-    "texto": "Reunião de alinhamento estratégico do projeto",
-    "horario": "14:30",
-    "criado_em": "15/10/2026 09:00",
-    "concluido": false
-  },
-  {
-    "id": "rem_002",
-    "texto": "Revisar telemetria de sensores e núcleos de IA",
-    "horario": "17:00",
-    "criado_em": "15/10/2026 09:15",
-    "concluido": false
-  }
-]
-```
-
-
-==================================================
  ARQUIVO: .\DADOS\mcp_servers.json
 ==================================================
 
@@ -1717,68 +1013,6 @@ if __name__ == "__main__":
   }
 }
 
-```
-
-
-==================================================
- ARQUIVO: .\DADOS\model_registry.json
-==================================================
-
-```text
-{
-  "_perfil_detectado": "LOW",
-  "_hardware_detectado": {
-    "vram_gb": 4.0,
-    "ram_gb": 29.94,
-    "cpu_cores": 4,
-    "cpu_modelo": "AMD Ryzen 5 3550H with Radeon Vega Mobile Gfx",
-    "gpu_modelo": "NVIDIA GeForce GTX 1650"
-  },
-  "_descricao_perfil": "VRAM 4-6 GB — Modelos balanceados com quantização leve e AirLLM.",
-  "modelo_roteador": "qwen3:1.7b",
-  "especialistas": {
-    "HARDWARE": {
-      "tipo": "funcao_local",
-      "modulo": "hardware_module",
-      "descricao": "Monitoramento de CPU, GPU, RAM e temperaturas."
-    },
-    "ABRIR_APP": {
-      "tipo": "funcao_local",
-      "modulo": "actions_module",
-      "descricao": "Execução de programas e comandos do Windows."
-    },
-    "CONVERSA": {
-      "tipo": "llm",
-      "modelo_ollama": "llama3.2:3b",
-      "descricao": "Interações sociais, perguntas e dúvidas gerais."
-    },
-    "CODIGO": {
-      "tipo": "airllm",
-      "repo_id": "Qwen/Qwen2.5-Coder-32B-Instruct",
-      "descricao": "Criação de scripts, depuração e lógica de programação."
-    },
-    "VISAO": {
-      "tipo": "llm",
-      "modelo_ollama": "moondream",
-      "descricao": "Análise de tela e imagens."
-    },
-    "TAREFA_LONGA": {
-      "tipo": "airllm",
-      "repo_id": "Qwen/Qwen2.5-72B-Instruct",
-      "descricao": "Raciocínio complexo, planejamento e tarefas que exigem múltiplos passos."
-    },
-    "MEMORIA": {
-      "tipo": "llm",
-      "modelo_ollama": "llama3.2:3b",
-      "descricao": "Guardar, lembrar ou esquecer informações e fatos pessoais. Ativado por palavras como: guarda, salva, lembra, anota, grava, esquece, sabe que."
-    },
-    "WEB_MCP": {
-      "tipo": "llm",
-      "modelo_ollama": "llama3.2:3b",
-      "descricao": "Pesquisas na internet, notícias em tempo real, previsão do tempo, cotações e ferramentas online via protocolo MCP."
-    }
-  }
-}
 ```
 
 
@@ -1964,6 +1198,22 @@ function conectarWS() {
                 lidarBriefingEnd(d);
                 return;
             }
+            if (d.type === "diag_start") {
+                lidarDiagStart(d);
+                return;
+            }
+            if (d.type === "diag_step") {
+                lidarDiagStep(d);
+                return;
+            }
+            if (d.type === "diag_end") {
+                lidarDiagEnd(d);
+                return;
+            }
+            if (d.type === "music_update") {
+                atualizarPlayerUI(d.track);
+                return;
+            }
 
             if (d.cor) { 
                 corEstado = d.cor; 
@@ -1986,9 +1236,11 @@ function conectarWS() {
                 targetIntensity = d.intensidade;
                 if (d.intensidade > 0.15) {
                     falando = true;
+                    aplicarAudioDucking(true);
                     if (timerVolta) clearTimeout(timerVolta);
                 } else if (falando) {
                     falando = false;
+                    aplicarAudioDucking(false);
                     timerVolta = setTimeout(() => { 
                         if (targetColor) targetColor.set(corEstado); 
                         atualizarCorUI(corEstado); 
@@ -1997,6 +1249,11 @@ function conectarWS() {
             }
 
             if (d.padrao && d.padrao !== targetPattern) {
+                if (d.padrao === "falando") {
+                    aplicarAudioDucking(true);
+                } else if (d.padrao !== "falando" && !falando) {
+                    aplicarAudioDucking(false);
+                }
                 const snap = getBlendedPattern(Date.now() * 0.001, currentIntensity);
                 frozenPattern = { ...snap }; 
                 currentPattern = targetPattern; 
@@ -2773,21 +2030,25 @@ let briefingCards = [];
 let cardAtualHero = null;
 let briefingTimerEncerramento = null;
 let briefingPillsTimer = null;
-const BRIEFING_AUTO_FECHAR_MS = 60000;
+const BRIEFING_AUTO_FECHAR_MS = 120000;
 
 // ── MODO DE LAYOUT: esfera Mini-Core no canto quando há conteúdo no centro ──
 function atualizarModoLayoutBriefing() {
     const stage = document.getElementById('briefing-stage');
     const dock = document.getElementById('briefing-dock');
+    const diagStage = document.getElementById('diagnostics-stage');
     const canvas = document.getElementById('canvas-container');
 
     const stageVisivel = !!(stage && !stage.classList.contains('hidden') && stage.children.length > 0);
     const dockVisivel = !!(dock && !dock.classList.contains('hidden'));
+    const diagVisivel = !!(diagStage && !diagStage.classList.contains('hidden') && diagStage.children.length > 0);
 
-    // Esfera encolhe para o canto enquanto existe um card em destaque no centro
-    if (canvas) canvas.classList.toggle('canvas-mini-corner', stageVisivel);
-    // Legenda inferior some enquanto houver qualquer holograma (centro ou dock)
-    document.body.classList.toggle('briefing-ativo', stageVisivel || dockVisivel);
+    const conteudoPresente = stageVisivel || dockVisivel || diagVisivel;
+
+    // Esfera encolhe para o canto tanto quando houver card no centro, diagnóstico ou dock aberto
+    if (canvas) canvas.classList.toggle('canvas-mini-corner', conteudoPresente);
+    // Legenda inferior some enquanto houver qualquer holograma (centro, diagnóstico ou dock)
+    document.body.classList.toggle('briefing-ativo', conteudoPresente);
 }
 
 function agendarAutoFechamentoBriefing() {
@@ -2864,6 +2125,9 @@ function lidarBriefingStart(dados) {
     pararPillsTelemetria();
     briefingCards = [];
     cardAtualHero = null;
+
+    const pill = document.getElementById('briefing-restore-pill');
+    if (pill) pill.classList.add('hidden');
 
     const dock = document.getElementById('briefing-dock');
     const dockRow = document.getElementById('briefing-dock-row');
@@ -3205,7 +2469,7 @@ function fecharHeroCard() {
     agendarAutoFechamentoBriefing();
 }
 
-// Limpa todos os hologramas e devolve a esfera majestosa ao centro
+// Limpa os hologramas ativos e recolhe para a pílula Glassmorphism (preserva os cards em memória)
 function fecharBriefingDock() {
     const dock = document.getElementById('briefing-dock');
     const stage = document.getElementById('briefing-stage');
@@ -3220,6 +2484,62 @@ function fecharBriefingDock() {
     if (briefingTimerEncerramento) clearTimeout(briefingTimerEncerramento);
     briefingTimerEncerramento = null;
     atualizarModoLayoutBriefing();
+
+    // Mostra pílula no canto inferior esquerdo com a contagem de cards
+    const pill = document.getElementById('briefing-restore-pill');
+    const pillCount = document.getElementById('pill-cards-count');
+    if (pill && briefingCards && briefingCards.length > 0) {
+        if (pillCount) pillCount.innerText = briefingCards.length;
+        pill.classList.remove('hidden');
+    }
+}
+
+// Reabre instantaneamente a fileira de cards com todas as notícias do último briefing
+function restaurarBriefingDock() {
+    const pill = document.getElementById('briefing-restore-pill');
+    if (pill) pill.classList.add('hidden');
+
+    const dock = document.getElementById('briefing-dock');
+    const dockRow = document.getElementById('briefing-dock-row');
+    if (!dock || !dockRow) return;
+
+    if (dockRow.children.length === 0 && briefingCards && briefingCards.length > 0) {
+        dockRow.innerHTML = '';
+        briefingCards.forEach(c => {
+            dockRow.appendChild(criarElementoMiniCard(c));
+        });
+    }
+
+    dock.classList.remove('hidden');
+    atualizarModoLayoutBriefing();
+    agendarAutoFechamentoBriefing();
+}
+
+// Carrega os cards do último briefing do backend para manter a pílula disponível mesmo após reload ou F11
+async function carregarUltimoBriefingCache() {
+    try {
+        const resp = await fetch('/api/briefing/last');
+        const data = await resp.json();
+        if (data && Array.isArray(data.cards) && data.cards.length > 0) {
+            briefingCards = data.cards;
+            const dockRow = document.getElementById('briefing-dock-row');
+            if (dockRow && dockRow.children.length === 0) {
+                dockRow.innerHTML = '';
+                briefingCards.forEach(c => {
+                    dockRow.appendChild(criarElementoMiniCard(c));
+                });
+            }
+            const pill = document.getElementById('briefing-restore-pill');
+            const pillCount = document.getElementById('pill-cards-count');
+            if (pill) {
+                if (pillCount) pillCount.innerText = briefingCards.length;
+                pill.classList.remove('hidden');
+            }
+            console.log(`[BRIEFING] ${briefingCards.length} cards restaurados do cache na pílula.`);
+        }
+    } catch(e) {
+        console.warn('[BRIEFING] Erro ao carregar cache do último briefing:', e);
+    }
 }
 
 async function iniciarBriefingManual() {
@@ -3242,6 +2562,226 @@ async function iniciarBriefingManual() {
                 btn.disabled = false;
             }
         }, 3000);
+    }
+}
+
+// ═══════════════════════════════════════════════════════
+//  SISTEMA DE DIAGNÓSTICO // MARK VII HUD HOLOGRÁFICO
+// ═══════════════════════════════════════════════════════
+let diagTimerFechamento = null;
+let diagContagemSegundos = 45;
+let diagIntervalTimer = null;
+const DIAG_AUTO_FECHAR_MS = 45000;
+
+const ICONES_SUBSISTEMAS = {
+    "ollama": "🧠",
+    "nucleo_neural": "🧠",
+    "vision": "👁️",
+    "visao_computacional": "👁️",
+    "memory": "📚",
+    "memoria_vetorial": "💾",
+    "voice": "🎙️",
+    "sintetizador_voz": "🎙️",
+    "calendar": "📅",
+    "google_calendar": "📅",
+    "drive": "📁",
+    "google_drive": "📁",
+    "media": "🎵",
+    "media_rede": "🌐",
+    "hardware": "🛡️",
+    "sentinela_hardware": "⚡"
+};
+
+function lidarDiagStart(dados) {
+    if (diagTimerFechamento) clearTimeout(diagTimerFechamento);
+    if (diagIntervalTimer) clearInterval(diagIntervalTimer);
+
+    const stage = document.getElementById('diagnostics-stage');
+    if (!stage) return;
+
+    stage.classList.remove('hidden');
+
+    const subsistemas = dados.subsistemas || [];
+    const htmlRows = subsistemas.map((sub, idx) => {
+        const icone = ICONES_SUBSISTEMAS[sub.id] || "⚙️";
+        return `
+            <div class="diag-row" id="diag-row-${sub.id}">
+                <div class="diag-row-left">
+                    <span class="diag-row-icon">${icone}</span>
+                    <div class="diag-row-info">
+                        <span class="diag-row-name">${idx + 1}. ${escapeHtmlBriefing(sub.nome)}</span>
+                        <span class="diag-row-detail" id="diag-detail-${sub.id}">Aguardando inicialização da varredura...</span>
+                    </div>
+                </div>
+                <div class="diag-row-right">
+                    <span class="diag-latency-tag" id="diag-latency-${sub.id}">-- ms</span>
+                    <span class="diag-badge pending" id="diag-badge-${sub.id}">PENDENTE</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    stage.innerHTML = `
+        <div class="diag-card-hero" id="diag-hero-card">
+            <div class="diag-header-row">
+                <div class="diag-title-group">
+                    <div class="diag-super-badge">
+                        <span class="diag-live-pulse"></span>
+                        <span>CHECKUP DO SISTEMA // MARK VII HUD</span>
+                    </div>
+                    <div class="diag-main-title">DIAGNÓSTICO DE SUBSISTEMAS NEURAIS</div>
+                </div>
+                <div class="diag-header-right">
+                    <div class="diag-progress-pill" id="diag-progress-counter">0 / ${dados.total || 8}</div>
+                    <button class="diag-close-btn" onclick="fecharDiagnostico()" title="Fechar Diagnóstico">✕ Fechar</button>
+                </div>
+            </div>
+
+            <div class="diag-progress-bar-track">
+                <div class="diag-progress-bar-fill" id="diag-progress-bar"></div>
+            </div>
+
+            <div class="diag-subsystems-list" id="diag-subsystems-container">
+                ${htmlRows}
+            </div>
+
+            <div class="diag-footer-row" id="diag-footer">
+                <div class="diag-summary-box">
+                    <span class="diag-summary-icon">⏳</span>
+                    <div>
+                        <div class="diag-summary-text-main" id="diag-summary-title">INICIANDO VARREDURA DE INTEGRIDADE...</div>
+                        <div class="diag-summary-text-sub" id="diag-summary-sub">Testando subsistemas em tempo real com telemetria direta.</div>
+                    </div>
+                </div>
+                <div class="diag-action-group">
+                    <span class="diag-timer-badge" id="diag-timer-display">AUTO-FECHAMENTO: 45s</span>
+                    <button class="diag-close-btn" onclick="fecharDiagnostico()">✕ Fechar</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    atualizarModoLayoutBriefing();
+    iniciarTimerDiagnostico(45);
+}
+
+function lidarDiagStep(step) {
+    if (!step || !step.id) return;
+
+    const row = document.getElementById(`diag-row-${step.id}`);
+    const detail = document.getElementById(`diag-detail-${step.id}`);
+    const latency = document.getElementById(`diag-latency-${step.id}`);
+    const badge = document.getElementById(`diag-badge-${step.id}`);
+    const counter = document.getElementById('diag-progress-counter');
+    const bar = document.getElementById('diag-progress-bar');
+
+    if (row) {
+        row.className = `diag-row ${step.status}`;
+        row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    if (detail && step.detalhe) {
+        detail.innerText = step.detalhe;
+    }
+
+    if (latency) {
+        latency.innerText = `${step.latencia_ms || 0} ms`;
+    }
+
+    if (badge) {
+        badge.className = `diag-badge ${step.status}`;
+        const labels = {
+            "testing": "TESTANDO...",
+            "ok": "✓ OPERACIONAL",
+            "warn": "⚠ ALERTA",
+            "error": "✕ FALHA"
+        };
+        badge.innerText = labels[step.status] || step.status.toUpperCase();
+    }
+
+    const stepIdx = (step.step_index !== undefined) ? step.step_index + 1 : 1;
+    const total = step.total_steps || 8;
+    if (counter) counter.innerText = `${stepIdx} / ${total}`;
+    if (bar) {
+        const pct = Math.min(100, Math.round((stepIdx / total) * 100));
+        bar.style.width = `${pct}%`;
+    }
+}
+
+function lidarDiagEnd(dados) {
+    const summaryTitle = document.getElementById('diag-summary-title');
+    const summarySub = document.getElementById('diag-summary-sub');
+    const summaryIcon = document.querySelector('.diag-summary-icon');
+    const counter = document.getElementById('diag-progress-counter');
+    const bar = document.getElementById('diag-progress-bar');
+
+    if (counter) counter.innerText = `${dados.total || 8} / ${dados.total || 8} FINALIZADO`;
+    if (bar) bar.style.width = '100%';
+
+    const todosOk = (dados.erro_total === 0 && dados.warn_total === 0);
+    if (summaryTitle) {
+        if (todosOk) {
+            summaryTitle.innerText = `${dados.online_total}/${dados.total} SISTEMAS OPERACIONAIS - 100% ONLINE`;
+            summaryTitle.style.color = "#00ff88";
+        } else if (dados.erro_total === 0) {
+            summaryTitle.innerText = `${dados.online_total}/${dados.total} SISTEMAS OPERACIONAIS (${dados.warn_total} EM ALERTA)`;
+            summaryTitle.style.color = "#ffaa00";
+        } else {
+            summaryTitle.innerText = `${dados.online_total}/${dados.total} ONLINE (${dados.erro_total} FALHA(S))`;
+            summaryTitle.style.color = "#ff0055";
+        }
+    }
+
+    if (summarySub && dados.resumo) {
+        summarySub.innerText = dados.resumo;
+    }
+
+    if (summaryIcon) {
+        summaryIcon.innerText = todosOk ? "🛡️" : (dados.erro_total > 0 ? "⚠️" : "⚡");
+    }
+
+    iniciarTimerDiagnostico(45);
+}
+
+function iniciarTimerDiagnostico(segundos = 45) {
+    if (diagTimerFechamento) clearTimeout(diagTimerFechamento);
+    if (diagIntervalTimer) clearInterval(diagIntervalTimer);
+
+    diagContagemSegundos = segundos;
+    const display = document.getElementById('diag-timer-display');
+    if (display) display.innerText = `AUTO-FECHAMENTO: ${diagContagemSegundos}s`;
+
+    diagIntervalTimer = setInterval(() => {
+        diagContagemSegundos--;
+        const disp = document.getElementById('diag-timer-display');
+        if (disp) disp.innerText = `AUTO-FECHAMENTO: ${diagContagemSegundos}s`;
+        if (diagContagemSegundos <= 0) {
+            clearInterval(diagIntervalTimer);
+            fecharDiagnostico();
+        }
+    }, 1000);
+}
+
+function fecharDiagnostico() {
+    if (diagTimerFechamento) clearTimeout(diagTimerFechamento);
+    if (diagIntervalTimer) clearInterval(diagIntervalTimer);
+    diagTimerFechamento = null;
+    diagIntervalTimer = null;
+
+    const stage = document.getElementById('diagnostics-stage');
+    if (stage) {
+        stage.classList.add('hidden');
+        stage.innerHTML = '';
+    }
+    atualizarModoLayoutBriefing();
+}
+
+async function iniciarDiagnosticoManual() {
+    fecharDiagnostico();
+    try {
+        await fetch('/api/diagnostics/start', { method: 'POST' });
+    } catch(e) {
+        console.error('Erro ao acionar diagnóstico manual:', e);
     }
 }
 
@@ -3345,11 +2885,486 @@ async function deletarLembrete(remId) {
 }
 
 // ═══════════════════════════════════════════════════════
+//  MEDIA HUB HUD & MINI-PLAYER (YOUTUBE, LOCAL & SPOTIFY)
+// ═══════════════════════════════════════════════════════
+
+let audioPlayer = null;
+let estadoPlayerAtual = {
+    fonte: 'youtube',
+    tocando: false,
+    titulo: 'Jarvis Media Hub',
+    artista: 'Aguardando áudio...',
+    capa: '',
+    duracao: '0:00',
+    duracao_segundos: 0,
+    stream_url: '',
+    webpage_url: '',
+    volume: 80
+};
+
+let playerVolumePadrao = 0.8;
+let playerDuckAtivo = false;
+
+function obterElementoAudio() {
+    if (!audioPlayer) {
+        audioPlayer = document.getElementById('jarvis-audio-player');
+        if (audioPlayer) {
+            audioPlayer.volume = playerVolumePadrao;
+
+            audioPlayer.addEventListener('timeupdate', () => {
+                const cur = audioPlayer.currentTime || 0;
+                const dur = audioPlayer.duration || estadoPlayerAtual.duracao_segundos || 0;
+                const timeCurEl = document.getElementById('player-time-current');
+                const timeTotEl = document.getElementById('player-time-total');
+                const fillEl = document.getElementById('player-progress-fill');
+
+                if (timeCurEl) timeCurEl.innerText = formatarTempoPlayer(cur);
+                if (timeTotEl && dur > 0) timeTotEl.innerText = formatarTempoPlayer(dur);
+                if (fillEl && dur > 0) {
+                    const pct = Math.min(100, Math.max(0, (cur / dur) * 100));
+                    fillEl.style.width = `${pct}%`;
+                }
+            });
+
+            audioPlayer.addEventListener('play', () => {
+                const btnPlay = document.getElementById('btn-player-play');
+                const coverBox = document.getElementById('player-cover-box');
+                if (btnPlay) btnPlay.innerText = '⏸';
+                if (coverBox) coverBox.classList.add('playing');
+                estadoPlayerAtual.tocando = true;
+            });
+
+            audioPlayer.addEventListener('pause', () => {
+                const btnPlay = document.getElementById('btn-player-play');
+                const coverBox = document.getElementById('player-cover-box');
+                if (btnPlay) btnPlay.innerText = '⏯';
+                if (coverBox) coverBox.classList.remove('playing');
+                estadoPlayerAtual.tocando = false;
+            });
+
+            audioPlayer.addEventListener('ended', () => {
+                controlarMusica('next');
+            });
+
+            audioPlayer.addEventListener('error', (e) => {
+                console.warn('[PLAYER] Erro no stream do elemento de áudio:', e);
+            });
+        }
+    }
+    return audioPlayer;
+}
+
+function formatarTempoPlayer(seg) {
+    if (!seg || isNaN(seg) || seg < 0) return '0:00';
+    const s = Math.floor(seg);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m}:${r < 10 ? '0' : ''}${r}`;
+}
+
+function atualizarPlayerUI(track, expandirSeTocando = true) {
+    if (!track) return;
+    Object.assign(estadoPlayerAtual, track);
+
+    const titleEl = document.getElementById('player-track-title');
+    const artistEl = document.getElementById('player-track-artist');
+    const coverImg = document.getElementById('player-cover-img');
+    const coverBox = document.getElementById('player-cover-box');
+    const badgeEl = document.getElementById('player-source-badge');
+    const btnPlay = document.getElementById('btn-player-play');
+    const timeTotEl = document.getElementById('player-time-total');
+    const volSlider = document.getElementById('player-volume-slider');
+    const capsuleEq = document.getElementById('player-capsule-eq');
+
+    if (titleEl) titleEl.innerText = track.titulo || 'Mídia Ativa';
+    if (artistEl) artistEl.innerText = track.artista || (track.fonte ? track.fonte.toUpperCase() : 'Jarvis');
+
+    if (coverImg && track.capa) {
+        coverImg.src = track.capa;
+    }
+
+    if (timeTotEl && track.duracao && track.duracao !== '--:--') {
+        timeTotEl.innerText = track.duracao;
+    }
+
+    // Badge da Fonte
+    if (badgeEl) {
+        badgeEl.className = 'player-source-badge';
+        if (track.fonte === 'spotify') {
+            badgeEl.innerText = 'SPOTIFY';
+            badgeEl.classList.add('badge-spotify');
+        } else if (track.fonte === 'local') {
+            badgeEl.innerText = 'LOCAL';
+            badgeEl.classList.add('badge-local');
+        } else {
+            badgeEl.innerText = 'YT';
+            badgeEl.classList.add('badge-yt');
+        }
+    }
+
+    // Seletor rápido de fontes
+    ['yt', 'local', 'spotify'].forEach(src => {
+        const btn = document.getElementById(`btn-src-${src}`);
+        if (btn) btn.classList.toggle('active', track.fonte === (src === 'yt' ? 'youtube' : src));
+    });
+
+    // Volume
+    if (track.volume !== undefined && volSlider) {
+        volSlider.value = track.volume;
+        playerVolumePadrao = track.volume / 100;
+        const player = obterElementoAudio();
+        if (player && !playerDuckAtivo) {
+            player.volume = playerVolumePadrao;
+        }
+    }
+
+    // Reprodução de áudio HTML5 (YouTube e Músicas Locais)
+    const player = obterElementoAudio();
+    if (track.fonte !== 'spotify' && track.stream_url && player) {
+        if (player.src !== track.stream_url) {
+            player.src = track.stream_url;
+            if (track.tocando) {
+                player.play().catch(e => console.log('[PLAYER] Autoplay restrição:', e));
+            }
+        } else {
+            if (track.tocando && player.paused) {
+                player.play().catch(e => console.log('[PLAYER] Play:', e));
+            } else if (!track.tocando && !player.paused) {
+                player.pause();
+            }
+        }
+    } else if (track.fonte === 'spotify') {
+        // Se a fonte for Spotify Desktop, pausa o áudio HTML5 para não sobrepor
+        if (player && !player.paused) {
+            player.pause();
+        }
+    }
+
+    if (btnPlay) {
+        btnPlay.innerText = track.tocando ? '⏸' : '⏯';
+    }
+    if (coverBox) {
+        coverBox.classList.toggle('playing', !!track.tocando);
+    }
+    if (capsuleEq) {
+        capsuleEq.classList.toggle('hidden', !track.tocando);
+    }
+
+    // Expansão automática se solicitado (ex: nova faixa começou a tocar)
+    if (track.tocando && expandirSeTocando) {
+        toggleExpandirPlayer(true);
+    }
+}
+
+// Audio Ducking: quando Jarvis fala, baixa suavemente a música para 20%
+function aplicarAudioDucking(ativar) {
+    const player = obterElementoAudio();
+    if (!player) return;
+
+    if (ativar && !playerDuckAtivo) {
+        playerDuckAtivo = true;
+        const targetVol = Math.max(0.04, playerVolumePadrao * 0.20);
+        player.volume = targetVol;
+    } else if (!ativar && playerDuckAtivo) {
+        playerDuckAtivo = false;
+        player.volume = playerVolumePadrao;
+    }
+}
+
+async function controlarMusica(action) {
+    const player = obterElementoAudio();
+
+    if (action === 'toggle') {
+        if (estadoPlayerAtual.fonte !== 'spotify' && player && player.src) {
+            if (player.paused) {
+                player.play().catch(() => {});
+            } else {
+                player.pause();
+            }
+        }
+    }
+
+    try {
+        const resp = await fetch('/api/music/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action })
+        });
+        const data = await resp.json();
+        if (data && data.track) {
+            atualizarPlayerUI(data.track);
+        }
+    } catch(e) {
+        console.error('[PLAYER] Erro ao enviar comando de controle:', e);
+    }
+}
+
+async function ajustarVolumePlayer(val) {
+    const volNum = parseInt(val, 10);
+    playerVolumePadrao = volNum / 100;
+    const player = obterElementoAudio();
+    if (player && !playerDuckAtivo) {
+        player.volume = playerVolumePadrao;
+    }
+
+    try {
+        await fetch('/api/music/control', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'volume', value: volNum })
+        });
+    } catch(e) {
+        console.warn('[PLAYER] Erro ao sincronizar volume:', e);
+    }
+}
+
+function mutarPlayer() {
+    const slider = document.getElementById('player-volume-slider');
+    const player = obterElementoAudio();
+    if (!slider || !player) return;
+
+    if (player.volume > 0) {
+        slider.dataset.oldVal = slider.value;
+        ajustarVolumePlayer(0);
+        slider.value = 0;
+    } else {
+        const restored = slider.dataset.oldVal || 80;
+        ajustarVolumePlayer(restored);
+        slider.value = restored;
+    }
+}
+
+function scrubPlayer(event) {
+    const wrap = document.getElementById('player-progress-wrap');
+    const player = obterElementoAudio();
+    if (!wrap || !player) return;
+
+    const rect = wrap.getBoundingClientRect();
+    const clickX = event.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, clickX / rect.width));
+
+    const dur = player.duration || estadoPlayerAtual.duracao_segundos || 0;
+    if (dur > 0 && player.src) {
+        player.currentTime = pct * dur;
+    }
+}
+
+function abrirLinkMusica() {
+    if (estadoPlayerAtual.webpage_url) {
+        window.open(estadoPlayerAtual.webpage_url, '_blank');
+    }
+}
+
+async function trocarFontePlayer(fonte) {
+    const termoDefault = fonte === 'local' ? '' : (fonte === 'spotify' ? 'synthwave' : 'lofi hip hop');
+    try {
+        const resp = await fetch('/api/music/play_query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: termoDefault, fonte: fonte })
+        });
+        const data = await resp.json();
+        if (data && data.track) {
+            atualizarPlayerUI(data.track);
+        }
+    } catch(e) {
+        console.error('[PLAYER] Erro ao alternar fonte:', e);
+    }
+}
+
+// Expande ou colapsa o Player entre Cápsula 46x46px e Widget Celular 250px
+function toggleExpandirPlayer(expandir) {
+    const playerEl = document.getElementById('hud-music-player');
+    if (!playerEl) return;
+    if (playerEl.dataset.justDragged) return; // Evita abrir acidentalmente logo após arrastar
+
+    if (expandir === undefined) {
+        playerEl.classList.toggle('collapsed');
+    } else if (expandir) {
+        playerEl.classList.remove('collapsed');
+    } else {
+        playerEl.classList.add('collapsed');
+    }
+}
+
+// Torna qualquer elemento HTML 100% arrastável pela tela com persistência no localStorage
+function tornarArrastavel(elemento, storageKey) {
+    if (!elemento) return;
+
+    // Restaurar posição salva previamente
+    try {
+        const saved = localStorage.getItem(storageKey);
+        if (saved) {
+            const pos = JSON.parse(saved);
+            if (pos.left !== undefined && pos.top !== undefined) {
+                const maxX = Math.max(0, window.innerWidth - 60);
+                const maxY = Math.max(0, window.innerHeight - 60);
+                const clampedX = Math.min(Math.max(10, pos.left), maxX);
+                const clampedY = Math.min(Math.max(10, pos.top), maxY);
+                elemento.style.left = `${clampedX}px`;
+                elemento.style.top = `${clampedY}px`;
+                elemento.style.right = 'auto';
+                elemento.style.bottom = 'auto';
+            }
+        }
+    } catch(e) {
+        console.warn('Erro ao restaurar posição:', storageKey, e);
+    }
+
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let initialLeft = 0, initialTop = 0;
+    let moved = false;
+
+    const onStart = (e) => {
+        // Ignora cliques em botões, inputs, controles e links
+        if (e.target.closest('button, input, .player-progress-bar-wrap, .player-cover-box, .vol-icon, .player-min-btn, a')) {
+            return;
+        }
+
+        const clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY ?? (e.touches && e.touches[0].clientY);
+        if (clientX === undefined) return;
+
+        isDragging = true;
+        moved = false;
+        startX = clientX;
+        startY = clientY;
+
+        const rect = elemento.getBoundingClientRect();
+        initialLeft = rect.left;
+        initialTop = rect.top;
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onEnd);
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onEnd);
+    };
+
+    const onMove = (e) => {
+        if (!isDragging) return;
+        const clientX = e.clientX ?? (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY ?? (e.touches && e.touches[0].clientY);
+        if (clientX === undefined) return;
+
+        const deltaX = clientX - startX;
+        const deltaY = clientY - startY;
+
+        if (!moved && (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4)) {
+            moved = true;
+            elemento.classList.add('dragging');
+        }
+
+        if (moved) {
+            if (e.cancelable) e.preventDefault();
+            const w = elemento.offsetWidth || 50;
+            const h = elemento.offsetHeight || 50;
+            const newLeft = Math.max(10, Math.min(window.innerWidth - w - 10, initialLeft + deltaX));
+            const newTop = Math.max(10, Math.min(window.innerHeight - h - 10, initialTop + deltaY));
+
+            elemento.style.left = `${newLeft}px`;
+            elemento.style.top = `${newTop}px`;
+            elemento.style.right = 'auto';
+            elemento.style.bottom = 'auto';
+        }
+    };
+
+    const onEnd = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        elemento.classList.remove('dragging');
+
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onEnd);
+        window.removeEventListener('touchmove', onMove);
+        window.removeEventListener('touchend', onEnd);
+
+        if (moved) {
+            const rect = elemento.getBoundingClientRect();
+            try {
+                localStorage.setItem(storageKey, JSON.stringify({ left: rect.left, top: rect.top }));
+            } catch(e) {}
+            elemento.dataset.justDragged = 'true';
+            setTimeout(() => { delete elemento.dataset.justDragged; }, 120);
+        }
+    };
+
+    elemento.addEventListener('mousedown', onStart);
+    elemento.addEventListener('touchstart', onStart, { passive: true });
+}
+
+async function inicializarStatusPlayer() {
+    // Configura drag & drop tanto para o Player quanto para a Pílula do Radar Matinal
+    const playerEl = document.getElementById('hud-music-player');
+    if (playerEl) {
+        tornarArrastavel(playerEl, 'jarvis_player_pos');
+    }
+    const pillEl = document.getElementById('briefing-restore-pill');
+    if (pillEl) {
+        tornarArrastavel(pillEl, 'jarvis_pill_pos');
+    }
+
+    try {
+        const resp = await fetch('/api/music/status');
+        const data = await resp.json();
+        if (data && data.titulo) {
+            // No carregamento inicial, não expande se estiver pausado
+            atualizarPlayerUI(data, false);
+        }
+    } catch(e) {
+        console.warn('[PLAYER] Status inicial do player não disponível:', e);
+    }
+}
+
+// Integração com Google Workspace (OAuth2)
+async function conectarContaGoogle() {
+    try {
+        const statusResp = await fetch('/api/google/status');
+        const status = await statusResp.json();
+
+        if (!status.configurado) {
+            alert('Atenção: O arquivo "DADOS/google_credentials.json" não foi encontrado.\n\nPara conectar sua conta Google:\n1. Acesse o Google Cloud Console (console.cloud.google.com)\n2. Crie credenciais OAuth 2.0 (Aplicativo para Computador)\n3. Baixe o JSON e salve como "DADOS/google_credentials.json"\n4. Clique neste botão novamente para autorizar.');
+            return;
+        }
+
+        if (status.autenticado) {
+            const reauth = confirm('Sua conta Google já está conectada e autenticada!\n\nDeseja reautenticar ou trocar de conta no navegador?');
+            if (!reauth) return;
+        }
+
+        const resp = await fetch('/api/google/auth', { method: 'POST' });
+        const res = await resp.json();
+        alert(res.mensagem || 'Processo de autenticação concluído.');
+    } catch(e) {
+        alert('Erro ao conectar ao Google: ' + e);
+    }
+}
+
+// Interrompe imediatamente qualquer fala, desfile de briefing ou ação ativa do Jarvis
+async function pararFalaJarvis() {
+    const btn = document.getElementById('btn-stop-mic');
+    if (btn) btn.classList.add('pulse-stop');
+
+    try {
+        await fetch('/api/jarvis/stop_action', { method: 'POST' });
+        if (subText) subText.innerText = '';
+        aplicarAudioDucking(false);
+    } catch(e) {
+        console.warn('Erro ao interromper fala do Jarvis:', e);
+    } finally {
+        setTimeout(() => {
+            if (btn) btn.classList.remove('pulse-stop');
+        }, 300);
+    }
+}
+
+// ═══════════════════════════════════════════════════════
 //  EXPOSIÇÃO DE MÉTODOS GLOBAIS AO WINDOW
 // ═══════════════════════════════════════════════════════
 window.selecionarPasta = selecionarPasta; 
 window.confirmarSetup = confirmarSetup;
-window.pararGravacaoMic = pararGravacaoMic;
+window.pararFalaJarvis = pararFalaJarvis;
+window.pararGravacaoMic = pararFalaJarvis;
 window.enviarComandoManual = enviarComandoManual;
 window.alternarMuteMic = alternarMuteMic;
 window.selecionarVoz = selecionarVoz;
@@ -3364,6 +3379,7 @@ window.lidarBriefingCardFocus = lidarBriefingCardFocus;
 window.lidarBriefingEnd = lidarBriefingEnd;
 window.reabrirCardHero = reabrirCardHero;
 window.fecharBriefingDock = fecharBriefingDock;
+window.restaurarBriefingDock = restaurarBriefingDock;
 window.fecharHeroCard = fecharHeroCard;
 window.iniciarBriefingManual = iniciarBriefingManual;
 window.carregarLembretes = carregarLembretes;
@@ -3373,10 +3389,32 @@ window.salvarNovoLembrete = salvarNovoLembrete;
 window.toggleLembrete = toggleLembrete;
 window.deletarLembrete = deletarLembrete;
 
-// Inicialização imediata de voz, microfone, lembretes e briefing de notícias
+// Métodos do Mini-Player HUD e Draggable
+window.controlarMusica = controlarMusica;
+window.ajustarVolumePlayer = ajustarVolumePlayer;
+window.mutarPlayer = mutarPlayer;
+window.scrubPlayer = scrubPlayer;
+window.abrirLinkMusica = abrirLinkMusica;
+window.trocarFontePlayer = trocarFontePlayer;
+window.atualizarPlayerUI = atualizarPlayerUI;
+window.aplicarAudioDucking = aplicarAudioDucking;
+window.toggleExpandirPlayer = toggleExpandirPlayer;
+window.tornarArrastavel = tornarArrastavel;
+window.conectarContaGoogle = conectarContaGoogle;
+
+// Métodos de Diagnóstico Mark VII
+window.iniciarDiagnosticoManual = iniciarDiagnosticoManual;
+window.fecharDiagnostico = fecharDiagnostico;
+window.lidarDiagStart = lidarDiagStart;
+window.lidarDiagStep = lidarDiagStep;
+window.lidarDiagEnd = lidarDiagEnd;
+
+// Inicialização imediata de voz, microfone, lembretes, briefing e player
 window.carregarConfigVoz();
 window.carregarConfigNoticias();
 window.carregarLembretes();
+carregarUltimoBriefingCache();
+inicializarStatusPlayer();
 checarStatusMuteMic();
 
 
@@ -3502,6 +3540,16 @@ checarStatusMuteMic();
                         <span>Tecnologia & IA</span>
                     </div>
                     <span class="toggle-check">✓</span>
+                </button>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-header">DIAGNÓSTICO & CHECKUP</div>
+                <button class="dropdown-item" id="btn-run-diagnostics" onclick="iniciarDiagnosticoManual(); closeSysMenu();" title="Executar Diagnóstico Completo de Todos os 8 Subsistemas em Tempo Real">
+                    <span class="item-icon">🩺</span> Diagnóstico // Mark VII
+                </button>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-header">INTEGRAÇÃO GOOGLE WORKSPACE</div>
+                <button class="dropdown-item" id="btn-google-auth" onclick="conectarContaGoogle(); closeSysMenu();" title="Conectar ao Google Calendar e Google Drive">
+                    <span class="item-icon">🔗</span> Conectar Conta Google
                 </button>
                 <div class="dropdown-divider"></div>
                 <div class="dropdown-header">DEBUG VIEWS</div>
@@ -3646,11 +3694,19 @@ checarStatusMuteMic();
 <!-- 🌌 STAGE HOLOGRÁFICO DO BRIEFING MATINAL (CARDS CENTRAIS EM DESTAQUE) -->
 <div id="briefing-stage" class="hidden"></div>
 
+<!-- 🩺 STAGE HOLOGRÁFICO DE DIAGNÓSTICO DE SISTEMAS // MARK VII -->
+<div id="diagnostics-stage" class="hidden"></div>
+
 <!-- 🌌 DOCK INFERIOR: CARDS DE VIDRO FLUTUANTES (SEM CAIXA DE FUNDO) -->
 <div id="briefing-dock" class="hidden">
     <div id="briefing-dock-row"></div>
-    <button id="btn-briefing-clear" class="briefing-clear-btn" onclick="fecharBriefingDock()" title="Fechar os hologramas do briefing">✕ Limpar Tela</button>
+    <button id="btn-briefing-clear" class="briefing-clear-btn" onclick="fecharBriefingDock()" title="Minimizar os hologramas do briefing para a pílula">✕ Minimizar</button>
 </div>
+
+<!-- 📰 PÍLULA FLUTUANTE DE RESTAURAÇÃO DO BRIEFING (RADAR MATINAL) -->
+<button id="briefing-restore-pill" class="briefing-restore-pill hidden" onclick="restaurarBriefingDock()" title="Restaurar cards de notícias e telemetria do último briefing">
+    📰 RADAR MATINAL (<span id="pill-cards-count">7</span>)
+</button>
 
 <!-- 📋 MODAL DE NOVO LEMBRETE -->
 <div id="modal-lembrete" class="modal-overlay hidden" onclick="if(event.target===this) fecharModalLembrete()">
@@ -3682,14 +3738,86 @@ checarStatusMuteMic();
         <span class="btn-icon" id="mute-icon">🎤</span>
         <span class="btn-text" id="mute-text">MIC ATIVO</span>
     </button>
-    <button id="btn-stop-mic" class="hud-btn-stop" onclick="pararGravacaoMic()" title="Interrompe o microfone e envia o áudio imediatamente">
+    <button id="btn-stop-mic" class="hud-btn-stop" onclick="pararFalaJarvis()" title="Interromper fala ou ação imediatamente">
         <span class="btn-icon">⏹️</span>
-        <span class="btn-text">PARAR E ENVIAR</span>
+        <span class="btn-text">PARAR FALA</span>
     </button>
     <div class="input-command-wrapper">
         <input type="text" id="input-comando" placeholder="Ou digite um comando aqui..." onkeydown="if(event.key === 'Enter') enviarComandoManual()">
         <button id="btn-send-cmd" onclick="enviarComandoManual()">ENVIAR</button>
     </div>
+</div>
+
+<!-- 🎵 MINI-PLAYER GLASSMORPHISM HUD (COMPACTO, RETRÁTIL & ARRASTÁVEL) -->
+<div id="hud-music-player" class="hud-music-player collapsed" title="Jarvis Media Hub">
+    <!-- Cápsula / Ícone Flutuante (Visível quando minimizado) -->
+    <div class="player-capsule-btn" id="player-capsule" onclick="toggleExpandirPlayer()" title="Abrir Media Player">
+        <span class="player-capsule-icon" id="player-capsule-icon">🎵</span>
+        <div class="player-eq-mini hidden" id="player-capsule-eq">
+            <span></span><span></span><span></span>
+        </div>
+    </div>
+
+    <!-- Conteúdo Expandido (Estilo Widget Celular 250px) -->
+    <div class="player-expanded-body" id="player-expanded-content">
+        <div class="player-header-drag">
+            <span class="player-drag-handle" title="Arraste para mover">⋮⋮ MEDIA HUB</span>
+            <button class="player-min-btn" onclick="toggleExpandirPlayer(false)" title="Recolher Player">–</button>
+        </div>
+
+        <div class="player-card-main">
+            <!-- Miniatura e Equalizador Animado -->
+            <div class="player-cover-box" id="player-cover-box" onclick="abrirLinkMusica()" title="Abrir na fonte original">
+                <img id="player-cover-img" src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&q=80" alt="Capa" class="player-cover-img" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&q=80'">
+                <div class="player-eq-overlay" id="player-eq-bars">
+                    <span class="eq-bar"></span>
+                    <span class="eq-bar"></span>
+                    <span class="eq-bar"></span>
+                    <span class="eq-bar"></span>
+                </div>
+            </div>
+
+            <!-- Informações da Faixa -->
+            <div class="player-info-col">
+                <div class="player-title-marquee" id="player-title-wrap">
+                    <span id="player-track-title" class="player-track-title">Jarvis Media Hub</span>
+                </div>
+                <div class="player-meta-row">
+                    <span id="player-track-artist" class="player-track-artist">Aguardando áudio...</span>
+                    <span id="player-source-badge" class="player-source-badge badge-yt">YT</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Barra de Progresso -->
+        <div class="player-progress-row">
+            <span id="player-time-current" class="player-time-label">0:00</span>
+            <div class="player-progress-bar-wrap" id="player-progress-wrap" onclick="scrubPlayer(event)" title="Clique para avançar">
+                <div class="player-progress-bar-fill" id="player-progress-fill" style="width: 0%;"></div>
+            </div>
+            <span id="player-time-total" class="player-time-label">0:00</span>
+        </div>
+
+        <!-- Controles de Mídia, Volume e Seletor -->
+        <div class="player-controls-row">
+            <button class="player-ctrl-btn" id="btn-player-prev" onclick="controlarMusica('prev')" title="Faixa Anterior">⏮</button>
+            <button class="player-ctrl-btn play-pause-btn" id="btn-player-play" onclick="controlarMusica('toggle')" title="Play / Pause">⏯</button>
+            <button class="player-ctrl-btn" id="btn-player-next" onclick="controlarMusica('next')" title="Próxima Faixa">⏭</button>
+            <div class="player-volume-wrap">
+                <span class="vol-icon" onclick="mutarPlayer()" title="Mutar/Desmutar">🔊</span>
+                <input type="range" id="player-volume-slider" min="0" max="100" value="80" oninput="ajustarVolumePlayer(this.value)" class="player-vol-slider" title="Volume">
+            </div>
+        </div>
+
+        <div class="player-source-switcher">
+            <button class="source-opt-btn active" id="btn-src-yt" onclick="trocarFontePlayer('youtube')" title="YouTube Audio">YT</button>
+            <button class="source-opt-btn" id="btn-src-local" onclick="trocarFontePlayer('local')" title="Músicas do PC">LOCAL</button>
+            <button class="source-opt-btn" id="btn-src-spotify" onclick="trocarFontePlayer('spotify')" title="Spotify">SPOTIFY</button>
+        </div>
+    </div>
+
+    <!-- Elemento de Áudio HTML5 nativo -->
+    <audio id="jarvis-audio-player" preload="auto"></audio>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -4483,19 +4611,45 @@ body {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
-    width: 280px;
+    width: 295px;
+    max-height: calc(100vh - 70px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
     background: rgba(6, 12, 22, 0.96);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(0, 255, 255, 0.25);
     border-radius: 10px;
-    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 255, 255, 0.15);
-    padding: 8px;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.85), 0 0 20px rgba(0, 255, 255, 0.2);
+    padding: 10px 6px 12px 10px;
     display: none;
     flex-direction: column;
     gap: 3px;
     z-index: 2500;
     animation: fadeInMenu 0.2s ease-out;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 255, 255, 0.45) rgba(0, 0, 0, 0.35);
+}
+
+.hud-dropdown-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.hud-dropdown-menu::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 4px;
+}
+
+.hud-dropdown-menu::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 255, 0.4);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.hud-dropdown-menu::-webkit-scrollbar-thumb:hover {
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
 }
 
 .hud-dropdown-menu.open {
@@ -4762,9 +4916,31 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
     padding: 16px;
     gap: 16px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 255, 255, 0.45) rgba(0, 0, 0, 0.35);
+}
+
+.drawer-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.drawer-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 4px;
+}
+
+.drawer-content::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 255, 0.4);
+    border-radius: 4px;
+}
+
+.drawer-content::-webkit-scrollbar-thumb:hover {
+    background: var(--cyan);
 }
 
 .drawer-header {
@@ -5171,9 +5347,10 @@ body {
     transform: scale(1.03);
 }
 
-.hud-btn-stop:active, .hud-btn-stop.btn-active {
-    transform: scale(0.96);
-    background: #cc0044;
+.hud-btn-stop:active, .hud-btn-stop.btn-active, .hud-btn-stop.pulse-stop {
+    transform: scale(0.95);
+    background: #ff0044;
+    box-shadow: 0 0 25px rgba(255, 0, 85, 0.9);
 }
 
 .btn-icon {
@@ -5365,16 +5542,43 @@ body {
     align-items: center;
     justify-content: center; 
     color: white; 
+    overflow-y: auto;
+    padding: 24px 16px;
 }
 
 .setup-box {
-    background: rgba(10, 18, 30, 0.8);
-    padding: 36px;
+    background: rgba(10, 18, 30, 0.88);
+    padding: 32px;
     border-radius: 16px; 
     border: 1px solid rgba(0, 255, 255, 0.25);
     width: 90%;
     max-width: 620px;
+    max-height: 88vh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 255, 255, 0.1);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 255, 255, 0.45) rgba(0, 0, 0, 0.35);
+}
+
+.setup-box::-webkit-scrollbar {
+    width: 6px;
+}
+
+.setup-box::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 4px;
+}
+
+.setup-box::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 255, 0.4);
+    border-radius: 4px;
+    border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.setup-box::-webkit-scrollbar-thumb:hover {
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
 }
 
 .setup-input-group { margin-bottom: 18px; }
@@ -6042,6 +6246,64 @@ body.briefing-ativo #ui-layer #subtitles {
     box-shadow: 0 0 14px rgba(255, 0, 85, 0.3);
 }
 
+/* ── PÍLULA FLUTUANTE DE RESTAURAÇÃO DO BRIEFING (RADAR MATINAL) ── */
+.briefing-restore-pill {
+    position: fixed;
+    top: 66px;
+    left: 24px;
+    z-index: 125;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 30px;
+    background: linear-gradient(135deg, rgba(8, 24, 38, 0.92) 0%, rgba(4, 14, 24, 0.85) 100%);
+    backdrop-filter: blur(18px) saturate(180%);
+    -webkit-backdrop-filter: blur(18px) saturate(180%);
+    border: 1px solid rgba(0, 255, 255, 0.45);
+    color: #ffffff;
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    font-weight: 700;
+    cursor: grab;
+    user-select: none;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(0, 255, 255, 0.25);
+    transition: box-shadow 0.3s ease, border-color 0.25s ease, background 0.3s ease;
+    pointer-events: auto;
+    animation: pillFloatPulse 3s infinite ease-in-out;
+}
+
+.briefing-restore-pill.dragging {
+    cursor: grabbing !important;
+    transition: none !important;
+    transform: scale(1.04);
+}
+
+.briefing-restore-pill:hover {
+    border-color: #00ffff;
+    background: linear-gradient(135deg, rgba(0, 255, 255, 0.22) 0%, rgba(8, 24, 38, 0.95) 100%);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 255, 255, 0.5);
+}
+
+.briefing-restore-pill.hidden {
+    display: none !important;
+}
+
+.briefing-restore-pill #pill-cards-count {
+    color: var(--cyan);
+    font-weight: 800;
+}
+
+@keyframes pillFloatPulse {
+    0%, 100% {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 14px rgba(0, 255, 255, 0.25);
+    }
+    50% {
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6), 0 0 22px rgba(0, 255, 255, 0.45);
+    }
+}
+
 #briefing-dock-row {
     display: flex;
     justify-content: center;
@@ -6423,6 +6685,851 @@ body.briefing-ativo #ui-layer #subtitles {
     }
 }
 
+/* ═══════════════════════════════════════════════════════
+   9. MINI-PLAYER GLASSMORPHISM HUD (COMPACTO, RETRÁTIL & ARRASTÁVEL)
+   ═══════════════════════════════════════════════════════ */
+#hud-music-player {
+    position: fixed;
+    top: 66px;
+    right: 24px;
+    bottom: auto;
+    left: auto;
+    z-index: 1000;
+    background: linear-gradient(135deg, rgba(8, 20, 34, 0.92) 0%, rgba(4, 12, 22, 0.96) 100%);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(0, 255, 255, 0.35);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 16px rgba(0, 255, 255, 0.18);
+    transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1), height 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.35s ease, padding 0.35s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    user-select: none;
+    box-sizing: border-box;
+}
+
+#hud-music-player:hover {
+    border-color: rgba(0, 255, 255, 0.65);
+    box-shadow: 0 10px 36px rgba(0, 0, 0, 0.9), 0 0 24px rgba(0, 255, 255, 0.3);
+}
+
+#hud-music-player.dragging {
+    cursor: grabbing !important;
+    transition: none !important;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.95), 0 0 30px rgba(0, 255, 255, 0.45);
+}
+
+/* ── MODO 1: COLAPSADO PADRÃO (QUADRADINHO / CÁPSULA 46x46px) ── */
+#hud-music-player.collapsed {
+    width: 46px;
+    height: 46px;
+    min-width: 46px;
+    min-height: 46px;
+    border-radius: 14px;
+    padding: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+}
+
+#hud-music-player.collapsed .player-capsule-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    position: relative;
+}
+
+.player-capsule-icon {
+    font-size: 20px;
+    transition: transform 0.25s ease;
+}
+
+#hud-music-player.collapsed:hover .player-capsule-icon {
+    transform: scale(1.18);
+}
+
+.player-eq-mini {
+    position: absolute;
+    bottom: 5px;
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+    height: 8px;
+    pointer-events: none;
+}
+
+.player-eq-mini span {
+    width: 2px;
+    background: var(--cyan);
+    box-shadow: 0 0 4px var(--cyan);
+    border-radius: 1px;
+    animation: eqMiniBounce 0.8s infinite ease-in-out;
+}
+
+.player-eq-mini span:nth-child(1) { height: 40%; animation-delay: 0.1s; }
+.player-eq-mini span:nth-child(2) { height: 95%; animation-delay: 0.3s; }
+.player-eq-mini span:nth-child(3) { height: 60%; animation-delay: 0.2s; }
+
+@keyframes eqMiniBounce {
+    0%, 100% { height: 30%; }
+    50% { height: 100%; }
+}
+
+#hud-music-player.collapsed .player-expanded-body {
+    display: none !important;
+}
+
+/* ── MODO 2: EXPANDIDO (WIDGET COMPACTO ESTILO CELULAR 250px) ── */
+#hud-music-player:not(.collapsed) {
+    width: 250px;
+    max-width: calc(100vw - 32px);
+    border-radius: 18px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#hud-music-player:not(.collapsed) .player-capsule-btn {
+    display: none !important;
+}
+
+.player-expanded-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+/* Header Arrastável com Título e Botão Minimizar */
+.player-header-drag {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: grab;
+    padding: 0 2px 2px 2px;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.12);
+}
+
+.player-drag-handle {
+    font-family: var(--font-display);
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: rgba(0, 255, 255, 0.7);
+    user-select: none;
+}
+
+.player-min-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+    transition: color 0.2s ease, transform 0.2s ease;
+    outline: none;
+}
+
+.player-min-btn:hover {
+    color: var(--cyan);
+    transform: scale(1.25);
+}
+
+/* Card Principal: Capa + Infos da Faixa */
+.player-card-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-cover-box {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 255, 255, 0.4);
+    background: #02060d;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+    transition: transform 0.25s ease, border-color 0.25s ease;
+}
+
+.player-cover-box:hover {
+    transform: scale(1.05);
+    border-color: var(--cyan);
+}
+
+.player-cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.player-eq-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 2px;
+    padding-bottom: 5px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.player-cover-box.playing .player-eq-overlay {
+    opacity: 1;
+}
+
+.eq-bar {
+    width: 3px;
+    background: var(--cyan);
+    box-shadow: 0 0 6px var(--cyan);
+    border-radius: 1px;
+    animation: eqBounce 0.9s infinite ease-in-out;
+}
+
+.eq-bar:nth-child(1) { height: 35%; animation-delay: 0.1s; }
+.eq-bar:nth-child(2) { height: 75%; animation-delay: 0.3s; }
+.eq-bar:nth-child(3) { height: 50%; animation-delay: 0.2s; }
+.eq-bar:nth-child(4) { height: 85%; animation-delay: 0.4s; }
+
+@keyframes eqBounce {
+    0%, 100% { height: 25%; }
+    50% { height: 85%; }
+}
+
+/* Coluna de informações da faixa */
+.player-info-col {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.player-title-marquee {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    width: 100%;
+}
+
+.player-track-title {
+    font-family: var(--font-display);
+    font-size: 10px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.4px;
+    text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+    display: inline-block;
+}
+
+.player-meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+}
+
+.player-track-artist {
+    font-size: 9px;
+    color: rgba(220, 240, 255, 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.player-source-badge {
+    font-family: var(--font-display);
+    font-size: 7px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+.player-source-badge.badge-yt {
+    color: #ff5555;
+    background: rgba(255, 85, 85, 0.14);
+    border: 1px solid rgba(255, 85, 85, 0.45);
+}
+
+.player-source-badge.badge-local {
+    color: #00ff88;
+    background: rgba(0, 255, 136, 0.14);
+    border: 1px solid rgba(0, 255, 136, 0.45);
+}
+
+.player-source-badge.badge-spotify {
+    color: #1ed760;
+    background: rgba(30, 215, 96, 0.14);
+    border: 1px solid rgba(30, 215, 96, 0.45);
+}
+
+/* Barra de progresso da reprodução */
+.player-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.player-time-label {
+    font-family: var(--font-display);
+    font-size: 8px;
+    color: rgba(0, 255, 255, 0.65);
+    min-width: 22px;
+    text-align: center;
+}
+
+.player-progress-bar-wrap {
+    flex: 1;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    cursor: pointer;
+    overflow: hidden;
+    position: relative;
+    transition: height 0.15s ease;
+}
+
+.player-progress-bar-wrap:hover {
+    height: 5px;
+}
+
+.player-progress-bar-fill {
+    height: 100%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+    border-radius: 2px;
+    transition: width 0.1s linear;
+}
+
+/* Controles de mídia + Volume */
+.player-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.player-ctrl-btn {
+    background: rgba(0, 255, 255, 0.08);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    color: #ffffff;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.player-ctrl-btn:hover {
+    background: rgba(0, 255, 255, 0.28);
+    border-color: var(--cyan);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    transform: scale(1.08);
+}
+
+.player-ctrl-btn.play-pause-btn {
+    width: 24px;
+    height: 24px;
+    background: rgba(0, 255, 255, 0.18);
+    border-color: var(--cyan);
+    box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+}
+
+.player-ctrl-btn.play-pause-btn:hover {
+    background: var(--cyan);
+    color: #000000;
+    box-shadow: 0 0 15px var(--cyan);
+}
+
+.player-volume-wrap {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-left: auto;
+}
+
+.vol-icon {
+    font-size: 9px;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.vol-icon:hover {
+    opacity: 1;
+}
+
+.player-vol-slider {
+    width: 44px;
+    height: 3px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+
+.player-vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 6px var(--cyan);
+    cursor: pointer;
+}
+
+.player-vol-slider::-moz-range-thumb {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 6px var(--cyan);
+    cursor: pointer;
+}
+
+/* Seletor rápido de fonte (YT | LOCAL | SPOTIFY) */
+.player-source-switcher {
+    display: flex;
+    justify-content: center;
+    gap: 3px;
+    border-top: 1px solid rgba(0, 255, 255, 0.08);
+    padding-top: 3px;
+}
+
+.source-opt-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: rgba(220, 240, 255, 0.6);
+    font-family: var(--font-display);
+    font-size: 7px;
+    letter-spacing: 0.6px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.source-opt-btn:hover {
+    color: #ffffff;
+    border-color: rgba(0, 255, 255, 0.4);
+}
+
+.source-opt-btn.active {
+    background: rgba(0, 255, 255, 0.16);
+    border-color: var(--cyan);
+    color: var(--cyan);
+    font-weight: 800;
+    box-shadow: 0 0 6px rgba(0, 255, 255, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DIAGNÓSTICO DE SISTEMAS // MARK VII HUD HOLOGRÁFICO
+   ═══════════════════════════════════════════════════════════ */
+#diagnostics-stage {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1050;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 90%;
+    max-width: 740px;
+    pointer-events: auto;
+    transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1), transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+#diagnostics-stage.hidden {
+    display: none !important;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.diag-card-hero {
+    width: 100%;
+    background: rgba(4, 10, 20, 0.90);
+    backdrop-filter: blur(22px) saturate(180%);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    border: 1px solid rgba(0, 255, 255, 0.38);
+    box-shadow: 0 0 50px rgba(0, 229, 255, 0.25), inset 0 0 25px rgba(0, 255, 255, 0.09);
+    border-radius: 12px;
+    padding: 22px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    position: relative;
+    overflow: hidden;
+    animation: diagCardIntro 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes diagCardIntro {
+    0% {
+        opacity: 0;
+        transform: scale(0.92) translateY(12px);
+        filter: blur(8px);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        filter: blur(0px);
+    }
+}
+
+/* Linha decorativa de scan laser animada no topo */
+.diag-card-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), #00e5ff, transparent);
+    animation: diagScanLine 3.2s linear infinite;
+}
+
+@keyframes diagScanLine {
+    0% { left: -100%; }
+    100% { left: 100%; }
+}
+
+.diag-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 255, 255, 0.18);
+    padding-bottom: 12px;
+}
+
+.diag-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.diag-super-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-display);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--cyan);
+    font-weight: 700;
+}
+
+.diag-live-pulse {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+    animation: pulseDot 1s infinite alternate;
+}
+
+.diag-main-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    letter-spacing: 2.5px;
+    color: #ffffff;
+    font-weight: 800;
+    text-shadow: 0 0 12px rgba(0, 255, 255, 0.6);
+}
+
+.diag-header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.diag-progress-pill {
+    background: rgba(0, 255, 255, 0.1);
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-family: var(--font-display);
+    font-size: 10px;
+    color: var(--cyan);
+    letter-spacing: 1px;
+}
+
+.diag-close-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.8);
+    font-family: var(--font-display);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.diag-close-btn:hover {
+    background: rgba(255, 0, 85, 0.2);
+    border-color: var(--red-alert);
+    color: #ffffff;
+    box-shadow: 0 0 10px rgba(255, 0, 85, 0.4);
+}
+
+/* Barra de progresso geral */
+.diag-progress-bar-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+}
+
+.diag-progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #0088ff, var(--cyan), #00ff88);
+    box-shadow: 0 0 10px var(--cyan);
+    transition: width 0.35s ease;
+}
+
+/* Lista de subsistemas */
+.diag-subsystems-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 420px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.diag-subsystems-list::-webkit-scrollbar {
+    width: 4px;
+}
+.diag-subsystems-list::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 255, 0.3);
+    border-radius: 2px;
+}
+
+.diag-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(0, 255, 255, 0.12);
+    border-radius: 6px;
+    padding: 8px 12px;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.diag-row:hover {
+    background: rgba(0, 255, 255, 0.05);
+    border-color: rgba(0, 255, 255, 0.3);
+}
+
+.diag-row.testing {
+    background: rgba(0, 229, 255, 0.08);
+    border-color: var(--cyan);
+    box-shadow: 0 0 12px rgba(0, 229, 255, 0.25);
+    animation: diagTestingPulse 1.2s infinite alternate;
+}
+
+@keyframes diagTestingPulse {
+    0% { border-color: rgba(0, 255, 255, 0.4); box-shadow: 0 0 6px rgba(0, 255, 255, 0.15); }
+    100% { border-color: var(--cyan); box-shadow: 0 0 18px rgba(0, 255, 255, 0.4); }
+}
+
+.diag-row.ok {
+    border-color: rgba(0, 255, 136, 0.25);
+}
+
+.diag-row.warn {
+    border-color: rgba(255, 170, 0, 0.35);
+    background: rgba(255, 170, 0, 0.04);
+}
+
+.diag-row.error {
+    border-color: rgba(255, 0, 85, 0.4);
+    background: rgba(255, 0, 85, 0.06);
+}
+
+.diag-row-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.diag-row-icon {
+    font-size: 15px;
+    width: 22px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.diag-row-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.diag-row-name {
+    font-family: var(--font-display);
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: #ffffff;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.diag-row-detail {
+    font-size: 10.5px;
+    color: rgba(220, 240, 255, 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-ui);
+}
+
+.diag-row-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.diag-latency-tag {
+    font-family: var(--font-display);
+    font-size: 9px;
+    color: rgba(0, 255, 255, 0.75);
+    background: rgba(0, 255, 255, 0.06);
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 255, 255, 0.15);
+}
+
+.diag-badge {
+    font-family: var(--font-display);
+    font-size: 9px;
+    letter-spacing: 1px;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.diag-badge.pending {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.diag-badge.testing {
+    background: rgba(0, 255, 255, 0.18);
+    color: var(--cyan);
+    border: 1px solid var(--cyan);
+    box-shadow: 0 0 10px rgba(0, 255, 255, 0.35);
+}
+
+.diag-badge.ok {
+    background: rgba(0, 255, 136, 0.15);
+    color: #00ff88;
+    border: 1px solid rgba(0, 255, 136, 0.4);
+    box-shadow: 0 0 8px rgba(0, 255, 136, 0.25);
+}
+
+.diag-badge.warn {
+    background: rgba(255, 170, 0, 0.15);
+    color: #ffaa00;
+    border: 1px solid rgba(255, 170, 0, 0.4);
+    box-shadow: 0 0 8px rgba(255, 170, 0, 0.25);
+}
+
+.diag-badge.error {
+    background: rgba(255, 0, 85, 0.2);
+    color: #ff0055;
+    border: 1px solid rgba(255, 0, 85, 0.5);
+    box-shadow: 0 0 10px rgba(255, 0, 85, 0.35);
+}
+
+/* Footer do diagnóstico com resumo executivo */
+.diag-footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(0, 255, 255, 0.18);
+    padding-top: 12px;
+}
+
+.diag-summary-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.diag-summary-icon {
+    font-size: 18px;
+}
+
+.diag-summary-text-main {
+    font-family: var(--font-display);
+    font-size: 11.5px;
+    letter-spacing: 1.5px;
+    color: #ffffff;
+    font-weight: 800;
+}
+
+.diag-summary-text-sub {
+    font-size: 10px;
+    color: rgba(0, 255, 255, 0.7);
+    font-family: var(--font-ui);
+}
+
+.diag-action-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.diag-timer-badge {
+    font-family: var(--font-display);
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+
 
 ```
 
@@ -6689,7 +7796,26 @@ async def processar_comando(texto_bruto: str):
 
     log.info(f"Roteador - Categoria: {categoria} | Alvo: {alvo}")
 
-    if categoria == "HARDWARE":
+    if categoria == "PARAR_AÇÃO":
+        from MODULOS.voice import voice_manager
+        voice_manager.interromper_fala_imediata()
+        from MODULOS.skills import briefing_module
+        try:
+            briefing_module.ULTIMO_BRIEFING_ATIVO = False
+        except Exception:
+            pass
+        await atualizar_jarvis(cor_hex="#00ffff", intensidade=0.1, texto="Ação interrompida, senhor.", padrao="conversa")
+        log.info("[BRAIN] Comando de interrupção de fala/ação executado com sucesso.")
+        return "#00ffff", "conversa", None
+
+    elif categoria == "DUVIDA":
+        cor      = "#ffaa00"
+        padrao   = "conversa"
+        pergunta = alvo if (alvo and len(alvo) > 8 and "?" in alvo) else "Senhor, o áudio cortou levemente e não compreendi com clareza. Poderia repetir o comando?"
+        await atualizar_jarvis(cor_hex=cor, texto=pergunta, padrao=padrao)
+        resposta = pergunta
+
+    elif categoria == "HARDWARE":
         cor      = "#ffff00"
         padrao   = "hardware"
         resposta = await hardware_module.obter_status_hardware(foco=alvo)
@@ -6733,6 +7859,14 @@ async def processar_comando(texto_bruto: str):
         loop = asyncio.get_running_loop()
         resposta = await loop.run_in_executor(None, fii_monitor.obter_resumo_fiis)
 
+    elif categoria == "DIAGNOSTICO":
+        cor      = "#00ffff"
+        padrao   = "tarefa"
+        await atualizar_jarvis(cor_hex=cor, texto="Iniciando diagnóstico de sistemas...", padrao=padrao)
+        from MODULOS.skills import diagnostics_module
+        asyncio.create_task(diagnostics_module.executar_diagnostico_coreografado())
+        resposta = None
+
     elif categoria == "BRIEFING":
         cor      = "#00e5ff"
         padrao   = "tarefa"
@@ -6753,6 +7887,42 @@ async def processar_comando(texto_bruto: str):
         padrao   = "conversa"
         from MODULOS.skills import reminders_module
         resposta = reminders_module.processar_comando_voz(texto_bruto)
+
+    elif categoria == "MUSICA":
+        cor      = "#00e5ff"
+        padrao   = "conversa"
+        await atualizar_jarvis(cor_hex=cor, texto="Sintonizando áudio...", padrao=padrao)
+        from MODULOS.skills import music_module
+        resposta = await music_module.processar_comando_musica(texto_bruto)
+
+    elif categoria == "CONTROLE_PC":
+        cor      = "#00ffff"
+        padrao   = "tarefa"
+        await atualizar_jarvis(cor_hex=cor, texto="Acessando controles do sistema...", padrao=padrao)
+        from MODULOS.skills import pc_control_module
+        resposta = await pc_control_module.processar_comando_pc(texto_bruto)
+
+    elif categoria == "GOOGLE_WORKSPACE":
+        cor      = "#4285f4"
+        padrao   = "tarefa"
+        await atualizar_jarvis(cor_hex=cor, texto="Conectando ao Google Workspace...", padrao=padrao)
+        from MODULOS.skills import google_mcp_module
+        import re
+        cmd_lower = texto_bruto.lower()
+        if any(k in cmd_lower for k in ["drive", "arquivo", "documento"]):
+            arquivos = google_mcp_module.buscar_arquivos_google_drive(texto_bruto, max_results=5)
+            if arquivos:
+                titulos = [f"'{a['nome']}'" for a in arquivos[:3]]
+                resposta = f"Localizei {len(arquivos)} arquivo(s) no seu Google Drive: " + ", ".join(titulos) + "."
+            else:
+                resposta = "Não localizei arquivos no seu Google Drive com esses critérios, senhor."
+        else:
+            eventos = google_mcp_module.listar_eventos_google_calendar(max_results=3)
+            if eventos:
+                descricoes = [f"'{e['titulo']}' às {e['horario']}" for e in eventos]
+                resposta = f"Seus próximos compromissos no Google Calendar são: " + "; ".join(descricoes) + "."
+            else:
+                resposta = "Sua agenda do Google não possui próximos eventos agendados no momento, senhor."
 
     elif categoria == "WEB_MCP":
         cor      = "#0088ff"
@@ -6937,32 +8107,70 @@ def _extrair_json(texto: str) -> dict | None:
 def _rota_por_keywords(texto: str) -> dict | None:
     t = texto.lower()
 
-    gatilhos_app = ["abrir", "abre", "iniciar", "executar", "lançar", "start", "abra"]
-    gatilhos_hw  = ["temperatura", "cpu", "gpu", "ram", "vram", "verra", "vera", "hardware", "processador", "status", "placa de vídeo", "placa de video", "memória de vídeo", "usando a vram", "usando vram", "processamento", "uso do"]
-    gatilhos_cod = ["código", "codigo", "script", "função", "funcao", "bug", "erro no código", "programa em python", "escreva um código", "crie uma função"]
-    gatilhos_fii = ["fii", "investimento", "bolsa", "ação", "cotacao", "cotação", "fundo", "oportunidade de compra", "ganhar dinheiro", "mxrf11", "xpml11", "vghf11", "btlg11"]
-    
-    gatilhos_web = [
-        "pesquise na internet", "pesquise na web", "pesquisa na internet", "pesquisa na web",
-        "pesquise", "pesquisa", "busque na web", "busque na internet", "busca na internet",
-        "busca na web", "busque", "notícias sobre", "noticias sobre", "notícia", "noticia",
-        "previsão do tempo", "previsao do tempo", "clima em", "clima hoje", "tempo em",
-        "temperatura em", "o que aconteceu hoje", "qual o preço atual", "preço atual de",
-        "preco atual de", "cotação do dólar", "cotacao do dolar", "preço do bitcoin",
-        "preco do bitcoin", "pesquisar na internet", "procure na web", "procure na internet"
+    # 0. Interrupção Imediata por Voz ("Jarvis, pare", "silêncio", "cancelar")
+    t_palavras = [w.strip() for w in re.sub(r"[^\w\s]", " ", t).split()]
+    gatilhos_parar_exatos = ["pare", "parar", "silencio", "silêncio", "calado", "cancelar", "cancela", "chega", "calar", "abortar"]
+    if any(p in gatilhos_parar_exatos for p in t_palavras) and len(t_palavras) <= 4:
+        return {"categoria": "PARAR_AÇÃO", "alvo": texto}
+    if any(g in t for g in ["jarvis, pare", "jarvis pare", "pare jarvis", "pare de falar", "para de falar", "cale a boca", "calar a boca", "fique quieto", "fica quieto"]):
+        return {"categoria": "PARAR_AÇÃO", "alvo": texto}
+
+    # 0.05 Diagnóstico de Sistemas // Mark VII
+    gatilhos_diag = [
+        "diagnóstico", "diagnostico", "faça um diagnóstico", "faca um diagnostico",
+        "fazer diagnóstico", "fazer diagnostico", "verificar todos os sistemas",
+        "verificar sistemas", "verifique os sistemas", "verifique todos os sistemas",
+        "teste de sistemas", "teste dos sistemas", "testar sistemas",
+        "status dos módulos", "status dos modulos", "status dos sistemas", "status do sistema",
+        "checkup dos sistemas", "checkup do sistema", "diagnóstico de sistemas", "diagnostico de sistemas"
     ]
+    if any(g in t for g in gatilhos_diag):
+        return {"categoria": "DIAGNOSTICO", "alvo": texto}
 
-    gatilhos_salvar = ["guarda", "salva", "anota", "grava", "recorda",
-                       "não esqueça", "memoriza", "sabe que"]
-    gatilhos_buscar_mem = ["qual é meu", "qual meu", "qual a minha", "qual o meu",
-                           "você sabe meu", "lembra meu", "lembra qual", "me diz meu",
-                           "quem sou", "como me chamo"]
-    gatilhos_esquecer_mem = ["esquece", "apaga", "deleta"]
+    # 0.1 Resposta à Pergunta de Plataforma de Música Pendente
+    try:
+        from MODULOS.skills import music_module
+        if getattr(music_module, "PEDIDO_MUSICA_PENDENTE", None):
+            respostas_plataforma = [
+                "youtube", "spotify", "local", "locais", "computador", "pc",
+                "offline", "tanto faz", "qualquer", "pode ser", "no spotify",
+                "no youtube", "nas locais", "nas musicas locais", "toca no youtube",
+                "toca no spotify"
+            ]
+            if any(p in t for p in respostas_plataforma):
+                return {"categoria": "MUSICA", "alvo": texto}
+    except Exception:
+        pass
 
+    # 0.2 Multimídia & Música (TOPO ABSOLUTO: antes de ABRIR_APP e VISAO)
+    gatilhos_musica = [
+        "música", "musica", "músicas", "musicas", "toco ", "toca ", "toque ", "tocar ",
+        "coloca uma", "coloca ", "bota uma", "bota ", "coloque uma", "coloque ",
+        "playlist", "spotify", "eletrônica", "eletronica", "rock", "lofi",
+        "toque a música", "tocar música", "tocar a música", "toque a musica", "tocar a musica",
+        "toque uma música", "toque uma musica", "tocar uma música", "tocar uma musica",
+        "pausar música", "pausar musica", "pausa a música", "pausa a musica", "pause a música", "pause a musica",
+        "parar música", "parar musica", "pare a música", "pare a musica",
+        "continuar música", "continuar musica", "retomar música", "retomar musica", "despausar",
+        "próxima música", "proxima musica", "próxima faixa", "proxima faixa",
+        "música anterior", "musica anterior", "faixa anterior",
+        "abrir spotify", "tocar no spotify", "toque no spotify", "toca no spotify",
+        "tocar no youtube", "toque no youtube", "toca no youtube",
+        "música offline", "musica offline", "minhas músicas", "minhas musicas",
+        "músicas do pc", "musicas do pc", "música local", "musica local"
+    ]
+    if any(g in t for g in gatilhos_musica):
+        return {"categoria": "MUSICA", "alvo": texto}
+
+    # 0.3 Briefing Matinal & Acompanhamento
     gatilhos_briefing = [
         "bom dia", "resumo do dia", "notícias de hoje", "noticias de hoje",
+        "notícia de hoje", "noticia de hoje", "as notícias", "as noticias",
+        "me fale as notícias", "me fale as noticias", "me fale a notícia", "me fale a noticia",
+        "espalhe a notícia", "espalhe a noticia", "espalhe as notícias", "espalhe as noticias",
+        "quais as notícias", "quais as noticias", "quais são as notícias", "quais sao as noticias",
         "briefing matinal", "briefing", "telemetria matinal", "giro do dia",
-        "panorama do dia", "iniciar briefing"
+        "panorama do dia", "iniciar briefing", "radar matinal"
     ]
     if any(g in t for g in gatilhos_briefing):
         return {"categoria": "BRIEFING", "alvo": texto}
@@ -6984,16 +8192,45 @@ def _rota_por_keywords(texto: str) -> dict | None:
     if any(g in t for g in gatilhos_followup_briefing):
         return {"categoria": "BRIEFING_FOLLOWUP", "alvo": texto}
 
+    # 0.4 Lembretes & Agenda
     gatilhos_lembretes = [
         "me lembre de", "me lembre", "lembrar de", "adicionar lembrete",
         "criar lembrete", "novo lembrete", "minha agenda", "meus lembretes",
         "quais são meus lembretes", "quais sao meus lembretes", "listar lembretes",
-        "concluir lembrete", "marcar lembrete", "agenda de hoje"
+        "concluir lembrete", "marcar lembrete", "agenda de hoje",
+        "olhada na minha agenda", "olhada na agenda", "compromissos", "compromisso",
+        "compromisso pra hoje", "compromisso para hoje", "compromissos de hoje", "tenho algum compromisso"
     ]
     if any(g in t for g in gatilhos_lembretes):
         return {"categoria": "LEMBRETES", "alvo": texto}
 
+    # 0.5 Controle do PC (Volume Master, Clipboard, Obsidian)
+    gatilhos_pc = [
+        "volume em", "volume para", "volume no",
+        "aumentar volume", "aumenta o volume", "abaixar volume", "abaixa o volume",
+        "diminuir volume", "sobe o volume", "baixa o volume",
+        "mutar som do pc", "mutar som", "mutar pc", "muta o pc", "silenciar o pc", "silenciar o som",
+        "desmutar som do pc", "desmutar pc", "desmuta o som", "desmutar o som", "tirar do mudo",
+        "resuma o que eu copiei", "resuma o que copiei", "explique o texto copiado", "o que eu copiei",
+        "o que está copiado", "o que esta copiado", "área de transferência", "area de transferencia", "clipboard",
+        "salve isso como nota no obsidian", "salva como nota no obsidian", "salve no obsidian", "salva no obsidian",
+        "criar nota no obsidian", "anote no obsidian", "anota no obsidian", "salve como nota", "salva como nota"
+    ]
+    if any(g in t for g in gatilhos_pc):
+        return {"categoria": "CONTROLE_PC", "alvo": texto}
+
+    # 0.6 Google Workspace (Calendar + Drive)
+    gatilhos_google = [
+        "google calendar", "google agenda", "agenda do google", "eventos no google",
+        "criar evento no google", "adicionar evento no google", "próximos eventos no google", "proximos eventos no google",
+        "google drive", "drive do google", "buscar no drive", "procurar no drive",
+        "arquivos no drive", "pesquisar no drive", "meus arquivos no google", "buscar arquivo no google"
+    ]
+    if any(g in t for g in gatilhos_google):
+        return {"categoria": "GOOGLE_WORKSPACE", "alvo": texto}
+
     # 1. Abertura de apps
+    gatilhos_app = ["abrir", "abre", "iniciar", "executar", "lançar", "start", "abra"]
     for g in gatilhos_app:
         if g in t:
             alvo = t
@@ -7002,6 +8239,7 @@ def _rota_por_keywords(texto: str) -> dict | None:
             return {"categoria": "ABRIR_APP", "alvo": alvo.strip()}
 
     # 2. Hardware
+    gatilhos_hw = ["temperatura", "cpu", "gpu", "ram", "vram", "verra", "vera", "hardware", "processador", "status", "placa de vídeo", "placa de video", "memória de vídeo", "usando a vram", "usando vram", "processamento", "uso do"]
     if any(g in t for g in gatilhos_hw):
         foco = None
         if "cpu" in t or "processador" in t:          foco = "CPU"
@@ -7011,18 +8249,32 @@ def _rota_por_keywords(texto: str) -> dict | None:
         return {"categoria": "HARDWARE", "alvo": foco}
 
     # 3. Web & Ferramentas Online (MCP)
+    gatilhos_web = [
+        "pesquise na internet", "pesquise na web", "pesquisa na internet", "pesquisa na web",
+        "pesquise", "pesquisa", "busque na web", "busque na internet", "busca na internet",
+        "busca na web", "busque", "notícias sobre", "noticias sobre", "notícia", "noticia",
+        "previsão do tempo", "previsao do tempo", "clima em", "clima hoje", "tempo em",
+        "temperatura em", "o que aconteceu hoje", "qual o preço atual", "preço atual de",
+        "preco atual de", "cotação do dólar", "cotacao do dolar", "preço do bitcoin",
+        "preco do bitcoin", "pesquisar na internet", "procure na web", "procure na internet"
+    ]
     if any(g in t for g in gatilhos_web):
         return {"categoria": "WEB_MCP", "alvo": texto}
 
     # 4. Memória
+    gatilhos_salvar = ["guarda", "salva", "anota", "grava", "recorda", "não esqueça", "memoriza", "sabe que"]
+    gatilhos_buscar_mem = ["qual é meu", "qual meu", "qual a minha", "qual o meu", "você sabe meu", "lembra meu", "lembra qual", "me diz meu", "quem sou", "como me chamo"]
+    gatilhos_esquecer_mem = ["esquece", "apaga", "deleta"]
     if any(g in t for g in gatilhos_salvar + gatilhos_buscar_mem + gatilhos_esquecer_mem):
         return {"categoria": "MEMORIA", "alvo": texto}
 
     # 5. Código
+    gatilhos_cod = ["código", "codigo", "script", "função", "funcao", "bug", "erro no código", "programa em python", "escreva um código", "crie uma função"]
     if any(g in t for g in gatilhos_cod):
         return {"categoria": "CODIGO", "alvo": texto}
 
     # 6. Mercado Financeiro
+    gatilhos_fii = ["fii", "investimento", "bolsa", "ação", "cotacao", "cotação", "fundo", "oportunidade de compra", "ganhar dinheiro", "mxrf11", "xpml11", "vghf11", "btlg11"]
     if any(g in t for g in gatilhos_fii):
         return {"categoria": "FINANCE", "alvo": texto}
 
@@ -7064,9 +8316,13 @@ async def rotear_intencao(comando: str) -> dict:
             "Você é o roteador neural do Jarvis.\n"
             "Analise a intenção do usuário e classifique-a em uma destas categorias:\n"
             f"{descricoes}\n\n"
-            "Categorias válidas: HARDWARE, ABRIR_APP, CONVERSA, CODIGO, MEMORIA, WEB_MCP, TAREFA_LONGA, FINANCE, VISAO.\n"
+            "Categorias válidas: HARDWARE, ABRIR_APP, CONVERSA, CODIGO, MEMORIA, WEB_MCP, TAREFA_LONGA, FINANCE, VISAO, MUSICA, DIAGNOSTICO, DUVIDA.\n\n"
+            "DIRETRIZES DE ROTEAMENTO:\n"
+            "- Se a frase do usuário parecer cortada pelo microfone, sem sentido claro ou se você tiver dúvida sobre qual ferramenta acionar, classifique como DUVIDA com uma pergunta curta de confirmação no campo 'alvo'.\n"
+            "- Atribua um nível de confiança ('confianca') de 0.0 a 1.0 para a classificação.\n"
+            "- Se 'confianca' for inferior a 0.65, classifique como DUVIDA.\n\n"
             "Retorne estritamente um JSON no formato:\n"
-            '{"categoria": "NOME_CATEGORIA", "alvo": "detalhes_ou_texto"}\n'
+            '{"categoria": "NOME_CATEGORIA", "confianca": 0.95, "alvo": "detalhes_ou_pergunta_de_confirmacao"}\n'
             "Responda apenas com o JSON."
         )
 
@@ -7086,6 +8342,17 @@ async def rotear_intencao(comando: str) -> dict:
         decisao = _extrair_json(conteudo)
         if decisao and "categoria" in decisao:
             cat = str(decisao["categoria"]).upper()
+            try:
+                confianca = float(decisao.get("confianca", 1.0))
+            except Exception:
+                confianca = 1.0
+
+            if confianca < 0.65 or cat == "DUVIDA":
+                alvo_duvida = decisao.get("alvo")
+                if not alvo_duvida or alvo_duvida == comando_normalizado or len(alvo_duvida) < 5:
+                    alvo_duvida = "Senhor, o áudio cortou levemente e não compreendi com clareza. O que gostaria que eu fizesse?"
+                return {"categoria": "DUVIDA", "alvo": alvo_duvida}
+
             return {"categoria": cat, "alvo": decisao.get("alvo", comando)}
     except Exception as e:
         log.warning(f"[ROTEADOR] Consulta ao modelo roteador falhou: {e}. Usando rota padrão.")
@@ -8596,33 +9863,42 @@ def perguntar_ao_llama_sobre_programa(alvo, lista_programas):
 
 def executar_comando(alvo):
     global PROGRAMAS_INSTALADOS
-    if not alvo or len(alvo) < 2: return None
+    if not alvo or len(alvo.strip()) < 2:
+        return "Senhor, o áudio cortou levemente e não identifiquei qual aplicativo deseja abrir. Poderia repetir?"
     
     nomes = list(PROGRAMAS_INSTALADOS.keys())
     
     if "não existe" in alvo.lower() or "não encontrado" in alvo.lower():
         return "Não consegui identificar o programa, senhor."
 
-    match = process.extractOne(alvo, nomes, score_cutoff=90) if process else None
+    nome_final = None
+    alvo_clean = alvo.strip().lower()
+    
+    # 1. Match exato ou token direto
+    for n in nomes:
+        n_low = n.lower()
+        if alvo_clean == n_low or alvo_clean in n_low.split():
+            nome_final = n
+            break
 
-    if match:
-        nome_final = match[0]
-        print(f"[ACTIONS] Match direto encontrado: {nome_final}")
-    else:
-        nome_final = next((n for n in nomes if alvo.lower() in n.lower()), None)
-        if not nome_final:
-            print(f"[ACTIONS] '{alvo}' não é óbvio. Consultando Llama...")
-            nome_final = perguntar_ao_llama_sobre_programa(alvo, nomes)
+    # 2. Match fuzzy de alta confiança (score >= 85)
+    if not nome_final and process:
+        match = process.extractOne(alvo, nomes, score_cutoff=85)
+        if match:
+            nome_final = match[0]
+            print(f"[ACTIONS] Match seguro encontrado: {nome_final} (score: {match[1]})")
 
-    if nome_final and nome_final in PROGRAMAS_INSTALADOS:
-        caminho = PROGRAMAS_INSTALADOS[nome_final]
-        try:
-            subprocess.Popen([caminho], shell=True, creationflags=subprocess.DETACHED_PROCESS)
-            return f"Iniciando {nome_final}, senhor."
-        except Exception as e:
-            return f"Erro técnico ao abrir {nome_final}: {e}"
+    # NÃO chamar Llama para chutar aplicativos aleatórios quando não há certeza
+    if not nome_final or nome_final not in PROGRAMAS_INSTALADOS:
+        print(f"[ACTIONS] '{alvo}' não teve match seguro (score < 85). Solicitando confirmação.")
+        return "Senhor, o áudio cortou levemente e não identifiquei qual aplicativo deseja abrir. Poderia repetir?"
 
-    return f"Não localizei o '{alvo}' no sistema."
+    caminho = PROGRAMAS_INSTALADOS[nome_final]
+    try:
+        subprocess.Popen([caminho], shell=True, creationflags=subprocess.DETACHED_PROCESS)
+        return f"Iniciando {nome_final}, senhor."
+    except Exception as e:
+        return f"Erro técnico ao abrir {nome_final}: {e}"
 
 # --- 2. INICIALIZAÇÃO DO MÓDULO (Sempre depois das funções) ---
 
@@ -8675,6 +9951,33 @@ from MODULOS.skills import reminders_module
 
 BRIEFING_EM_ANDAMENTO = False
 ULTIMO_BRIEFING_CARDS: list[dict] = []
+
+# Carrega cache do último briefing se existir
+try:
+    if os.path.exists("DADOS/ultimo_briefing.json"):
+        with open("DADOS/ultimo_briefing.json", "r", encoding="utf-8") as _f_init:
+            _cards_init = json.load(_f_init)
+            if isinstance(_cards_init, list):
+                ULTIMO_BRIEFING_CARDS = _cards_init
+except Exception:
+    pass
+
+def obter_ultimo_briefing() -> list[dict]:
+    """Retorna os cards do último briefing executado, carregando do cache se necessário."""
+    global ULTIMO_BRIEFING_CARDS
+    if ULTIMO_BRIEFING_CARDS:
+        return ULTIMO_BRIEFING_CARDS
+    caminho = "DADOS/ultimo_briefing.json"
+    if os.path.exists(caminho):
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+                if isinstance(dados, list):
+                    ULTIMO_BRIEFING_CARDS = dados
+                    return ULTIMO_BRIEFING_CARDS
+        except Exception as e:
+            log.warning(f"[BRIEFING] Erro ao carregar DADOS/ultimo_briefing.json: {e}")
+    return []
 
 IMAGENS_FALLBACK = {
     "mundo": "https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=800&q=80",
@@ -8766,12 +10069,31 @@ async def obter_card_clima(cidade: str = None) -> dict:
 async def obter_card_agenda() -> dict:
     pendentes = reminders_module.listar_lembretes_pendentes()
     itens = []
+
+    # 1. Integração com eventos da agenda do Google Workspace
+    try:
+        from MODULOS.skills import google_mcp_module
+        eventos_gcal = google_mcp_module.listar_eventos_google_calendar(max_results=4)
+        for ev in eventos_gcal:
+            itens.append({
+                "id": f"gcal_{ev.get('id')}",
+                "texto": f"📅 {ev.get('titulo')}",
+                "horario": ev.get("horario") or "--:--",
+                "origem": "google_calendar"
+            })
+    except Exception as e:
+        log.warning(f"[BRIEFING] Erro ao integrar Google Calendar na agenda: {e}")
+
+    # 2. Lembretes e tarefas locais
     for p in pendentes[:4]:
         itens.append({
             "id": p.get("id"),
             "texto": p.get("texto"),
-            "horario": p.get("horario") or "--:--"
+            "horario": p.get("horario") or "--:--",
+            "origem": "local"
         })
+
+    itens = itens[:5]
 
     if itens:
         descricoes = []
@@ -8783,9 +10105,9 @@ async def obter_card_agenda() -> dict:
         
         qtd = len(itens)
         if qtd == 1:
-            fala = f"Na sua agenda de hoje, o senhor possui 1 compromisso pendente registrado: {descricoes[0]}."
+            fala = f"Na sua agenda de hoje, o senhor possui 1 compromisso registrado: {descricoes[0]}."
         else:
-            fala = f"Na sua agenda de hoje, o senhor possui {qtd} compromissos pendentes: " + "; ".join(descricoes) + "."
+            fala = f"Na sua agenda de hoje, o senhor possui {qtd} compromissos registrados: " + "; ".join(descricoes) + "."
     else:
         fala = "Sua agenda está livre no momento, senhor. Não constam lembretes ou compromissos pendentes registrados para hoje."
 
@@ -9234,6 +10556,14 @@ async def executar_briefing_coreografado():
         global ULTIMO_BRIEFING_CARDS
         ULTIMO_BRIEFING_CARDS = list(cards_briefing)
 
+        os.makedirs("DADOS", exist_ok=True)
+        try:
+            with open("DADOS/ultimo_briefing.json", "w", encoding="utf-8") as _f_save:
+                json.dump(ULTIMO_BRIEFING_CARDS, _f_save, ensure_ascii=False, indent=2)
+            log.info("[BRIEFING] Cards salvos com sucesso em DADOS/ultimo_briefing.json")
+        except Exception as _e_save:
+            log.warning(f"[BRIEFING] Erro ao salvar DADOS/ultimo_briefing.json: {_e_save}")
+
         # Monta resumo textual estruturado de todos os 7 cards e salva IMEDIATAMENTE na memória
         data_hora_str = datetime.now().strftime("%d/%m/%Y às %H:%M")
         linhas_resumo = [
@@ -9281,7 +10611,13 @@ async def executar_briefing_coreografado():
         await asyncio.sleep(0.5)
 
         # ── FASE 2: DESFILE DE CARDS EM FOCO CENTRAL ──
+        briefing_abortado = False
         for idx, card in enumerate(cards_briefing):
+            if getattr(voice_manager, "ABORTAR_FALA", False):
+                log.info("[BRIEFING] Briefing interrompido pelo usuário via ABORTAR_FALA.")
+                briefing_abortado = True
+                break
+
             log.info(f"[BRIEFING] Exibindo card {idx + 1}/{len(cards_briefing)}: {card.get('titulo')}")
 
             # 1. Envia evento para a interface focar esse card no centro da esfera
@@ -9300,7 +10636,14 @@ async def executar_briefing_coreografado():
 
                 await asyncio.sleep(0.3)
                 while voice_manager.STATUS_FALANDO:
+                    if getattr(voice_manager, "ABORTAR_FALA", False):
+                        briefing_abortado = True
+                        break
                     await asyncio.sleep(0.1)
+
+            if briefing_abortado or getattr(voice_manager, "ABORTAR_FALA", False):
+                briefing_abortado = True
+                break
 
             # Pausa de transição suave para apreciação visual do card antes do próximo
             await asyncio.sleep(0.6)
@@ -9311,15 +10654,18 @@ async def executar_briefing_coreografado():
             "total_cards": len(cards_briefing)
         })
 
-        fala_fim = "Esse é o panorama consolidado do momento, senhor. Hoje, mantenha o foco no essencial."
-        await atualizar_jarvis(cor_hex="#00ffff", intensidade=0.6, texto=fala_fim, padrao="conversa")
-        await voice_manager.falar("Jarvis", fala_fim, prioridade=1)
+        if not briefing_abortado and not getattr(voice_manager, "ABORTAR_FALA", False):
+            fala_fim = "Esse é o panorama consolidado do momento, senhor. Hoje, mantenha o foco no essencial."
+            await atualizar_jarvis(cor_hex="#00ffff", intensidade=0.6, texto=fala_fim, padrao="conversa")
+            await voice_manager.falar("Jarvis", fala_fim, prioridade=1)
 
-        await asyncio.sleep(0.3)
-        while voice_manager.STATUS_FALANDO:
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.3)
+            while voice_manager.STATUS_FALANDO:
+                if getattr(voice_manager, "ABORTAR_FALA", False):
+                    break
+                await asyncio.sleep(0.1)
 
-        log.info("[BRIEFING] Briefing Matinal concluído com sucesso.")
+        log.info("[BRIEFING] Briefing Matinal concluído/encerrado com sucesso.")
 
     except Exception as e:
         log.error(f"[BRIEFING] Erro durante o briefing coreografado: {e}")
@@ -9462,6 +10808,368 @@ async def responder_followup_briefing(pergunta: str) -> str:
 
 
 ==================================================
+ ARQUIVO: .\MODULOS\skills\diagnostics_module.py
+==================================================
+
+```python
+"""
+diagnostics_module.py
+─────────────────────
+Módulo de Diagnóstico Completo em Tempo Real dos Subsistemas Neurais do Jarvis.
+Executa checkups profundos em cada subsistema e emite telemetria WebSocket
+para renderização de HUD holográfico Glassmorphism estilo Mark VII.
+"""
+
+import os
+import time
+import socket
+import asyncio
+import psutil
+
+from MODULOS.system.logger import log
+from MODULOS.system.comunicacao_visual import enviar_evento_interface, atualizar_jarvis
+from MODULOS.voice import voice_manager
+
+DIAGNOSTICO_EM_ANDAMENTO = False
+ULTIMO_DIAGNOSTICO = {}
+
+SUBSISTEMAS_METADATA = [
+    {"id": "ollama", "nome": "1. Núcleo Neural & Roteador (Ollama)", "icone": "🧠"},
+    {"id": "vision", "nome": "2. Módulo de Visão (Moondream)", "icone": "👁️"},
+    {"id": "memory", "nome": "3. Memória Semântica (ChromaDB)", "icone": "📚"},
+    {"id": "voice", "nome": "4. Sintetizador & Audição (Edge-TTS / Whisper)", "icone": "🎙️"},
+    {"id": "calendar", "nome": "5. Google Calendar API (OAuth2)", "icone": "📅"},
+    {"id": "drive", "nome": "6. Google Drive API (Workspace)", "icone": "📁"},
+    {"id": "media", "nome": "7. Rede & Media Hub (YouTube / Locais)", "icone": "🎵"},
+    {"id": "hardware", "nome": "8. Sentinela de Hardware (GTX 1650 / CPU)", "icone": "🛡️"}
+]
+
+async def _testar_ollama() -> tuple[str, str, int]:
+    t0 = time.time()
+    try:
+        import ollama
+        loop = asyncio.get_running_loop()
+        models_data = await loop.run_in_executor(None, ollama.list)
+        ms = max(1, int((time.time() - t0) * 1000))
+        names = []
+        if hasattr(models_data, 'models'):
+            names = [m.model for m in models_data.models]
+        elif isinstance(models_data, dict) and 'models' in models_data:
+            names = [m.get('name', '') for m in models_data['models']]
+        
+        tem_llama = any("llama3.2" in n for n in names)
+        tem_qwen = any("qwen" in n for n in names)
+        
+        if tem_llama and tem_qwen:
+            return "ok", f"Ollama Online • Llama 3.2 e Qwen ativos ({len(names)} modelos)", ms
+        return "ok", f"Ollama Online • {len(names)} modelos carregados", ms
+    except Exception as e:
+        ms = int((time.time() - t0) * 1000)
+        return "error", f"Servidor Ollama inativo ou porta 11434 ocupada: {str(e)[:40]}", ms
+
+async def _testar_visao() -> tuple[str, str, int]:
+    t0 = time.time()
+    try:
+        import ollama
+        loop = asyncio.get_running_loop()
+        models_data = await loop.run_in_executor(None, ollama.list)
+        names = [m.model for m in models_data.models] if hasattr(models_data, 'models') else []
+        tem_moondream = any("moondream" in n for n in names)
+        
+        # Teste de captura de tela
+        captura_ok = False
+        try:
+            from PIL import ImageGrab
+            test_img = ImageGrab.grab(bbox=(0, 0, 10, 10))
+            if test_img:
+                captura_ok = True
+        except Exception:
+            try:
+                import pyautogui
+                if pyautogui.size():
+                    captura_ok = True
+            except Exception:
+                pass
+
+        ms = max(1, int((time.time() - t0) * 1000))
+        if tem_moondream and captura_ok:
+            return "ok", "Moondream pronto • Captura de tela ativa", ms
+        elif captura_ok:
+            return "warn", "Captura ativa • Modelo moondream pendente de download", ms
+        elif tem_moondream:
+            return "warn", "Moondream disponível • Permissão de captura restrita", ms
+        return "warn", "Módulo de visão em modo simulado", ms
+    except Exception as e:
+        ms = int((time.time() - t0) * 1000)
+        return "warn", f"Visão em standby: {str(e)[:40]}", ms
+
+async def _testar_memoria() -> tuple[str, str, int]:
+    t0 = time.time()
+    try:
+        from MODULOS.memory import memory_long
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, memory_long.inicializar_banco)
+        ms = max(1, int((time.time() - t0) * 1000))
+        
+        total_fatos = 0
+        total_historico = 0
+        try:
+            if memory_long._col_fatos:
+                total_fatos = memory_long._col_fatos.count()
+            if memory_long._col_historico:
+                total_historico = memory_long._col_historico.count()
+        except Exception:
+            pass
+
+        return "ok", f"ChromaDB Conectado • {total_fatos} fatos / {total_historico} memórias", ms
+    except Exception as e:
+        ms = int((time.time() - t0) * 1000)
+        return "warn", f"ChromaDB em modo arquivo local: {str(e)[:40]}", ms
+
+async def _testar_voz() -> tuple[str, str, int]:
+    t0 = time.time()
+    try:
+        cfg = voice_manager.carregar_config_voz()
+        voz_nome = cfg.get("nome", "Neural: Antonio")
+        # Checa microfone
+        mic_status = "Microfone Ativo"
+        try:
+            from MODULOS import ear
+            if hasattr(ear, "MIC_MUTADO") and ear.MIC_MUTADO:
+                mic_status = "Microfone Mutado"
+        except Exception:
+            pass
+
+        ms = max(1, int((time.time() - t0) * 1000))
+        return "ok", f"{mic_status} • {voz_nome}", ms
+    except Exception as e:
+        ms = int((time.time() - t0) * 1000)
+        return "warn", f"Sintetizador com fallback local: {str(e)[:40]}", ms
+
+async def _testar_google_calendar() -> tuple[str, str, int]:
+    t0 = time.time()
+    try:
+        from MODULOS.skills import google_mcp_module
+        st = google_mcp_module.obter_status_google_auth()
+        ms = max(1, int((time.time() - t0) * 1000))
+        if st.get("autenticado"):
+            loop = asyncio.get_running_loop()
+            evs = await loop.run_in_executor(None, lambda: google_mcp_module.listar_eventos_google_calendar(max_results=1))
+            return "ok", f"Google Calendar Conectado • {len(evs)} compromisso(s) próximo(s)", ms
+        elif st.get("configurado"):
+            return "warn", "Credenciais encontradas • Aguardando autorização no navegador", ms
+        return "warn", "Google Calendar não conectado (Configure no Menu Sistema)", ms
+    except Exception as e:
+        ms = int((time.time() - t0) * 1000)
+        return "warn", f"Google Calendar Offline: {str(e)[:40]}", ms
+
+async def _testar_google_drive() -> tuple[str, str, int]:
+    t0 = time.time()
+    try:
+        from MODULOS.skills import google_mcp_module
+        st = google_mcp_module.obter_status_google_auth()
+        ms = max(1, int((time.time() - t0) * 1000))
+        if st.get("autenticado"):
+            loop = asyncio.get_running_loop()
+            arqs = await loop.run_in_executor(None, lambda: google_mcp_module.buscar_arquivos_google_drive(termo="", max_results=3))
+            return "ok", f"Google Drive Conectado • Acesso a {len(arqs)}+ arquivos recentes", ms
+        elif st.get("configurado"):
+            return "warn", "Credenciais encontradas • Aguardando autorização no navegador", ms
+        return "warn", "Google Drive não conectado (Configure no Menu Sistema)", ms
+    except Exception as e:
+        ms = int((time.time() - t0) * 1000)
+        return "warn", f"Google Drive Offline: {str(e)[:40]}", ms
+
+async def _testar_media_hub() -> tuple[str, str, int]:
+    t0 = time.time()
+    try:
+        loop = asyncio.get_running_loop()
+        def _check_net():
+            sock = socket.create_connection(('1.1.1.1', 53), timeout=2)
+            sock.close()
+        await loop.run_in_executor(None, _check_net)
+        
+        from MODULOS.skills import music_module
+        locais = await loop.run_in_executor(None, music_module.escanear_arquivos_locais)
+        ms = max(1, int((time.time() - t0) * 1000))
+        return "ok", f"Conexão de Rede Estável • {len(locais)} Músicas Locais (.opus/.flac/.mp3)", ms
+    except Exception as e:
+        ms = int((time.time() - t0) * 1000)
+        return "warn", f"Rede limitada: {str(e)[:40]}", ms
+
+async def _testar_hardware() -> tuple[str, str, int]:
+    t0 = time.time()
+    try:
+        gpu_info = "GPU N/A"
+        try:
+            import pynvml
+            pynvml.nvmlInit()
+            h = pynvml.nvmlDeviceGetHandleByIndex(0)
+            nome_gpu = pynvml.nvmlDeviceGetName(h)
+            temp = pynvml.nvmlDeviceGetTemperature(h, pynvml.NVML_TEMPERATURE_GPU)
+            mem = pynvml.nvmlDeviceGetMemoryInfo(h)
+            gpu_info = f"{nome_gpu} {temp}°C ({mem.used // (1024**2)}MB VRAM)"
+        except Exception:
+            pass
+
+        cpu_p = psutil.cpu_percent(interval=0.1)
+        ram_p = psutil.virtual_memory().percent
+        ms = max(1, int((time.time() - t0) * 1000))
+        return "ok", f"CPU {cpu_p}% | RAM {ram_p}% | {gpu_info}", ms
+    except Exception as e:
+        ms = int((time.time() - t0) * 1000)
+        return "warn", f"Telemetria básica: {str(e)[:40]}", ms
+
+TEST_RUNNERS = {
+    "ollama": _testar_ollama,
+    "vision": _testar_visao,
+    "memory": _testar_memoria,
+    "voice": _testar_voz,
+    "calendar": _testar_google_calendar,
+    "drive": _testar_google_drive,
+    "media": _testar_media_hub,
+    "hardware": _testar_hardware
+}
+
+async def executar_diagnostico_coreografado():
+    """
+    Executa o diagnóstico completo dos 8 subsistemas com sincronização em tempo real
+    para o HUD holográfico Glassmorphism e síntese de voz executiva do Jarvis.
+    """
+    global DIAGNOSTICO_EM_ANDAMENTO, ULTIMO_DIAGNOSTICO
+    if DIAGNOSTICO_EM_ANDAMENTO:
+        log.info("[DIAGNOSTICO] Diagnóstico já em andamento.")
+        return
+
+    DIAGNOSTICO_EM_ANDAMENTO = True
+    log.info("[DIAGNOSTICO] Iniciando checkup geral dos 8 subsistemas neurais...")
+
+    try:
+        # 1. Abre a interface holográfica no centro e minimiza o Core para o canto
+        await enviar_evento_interface({
+            "type": "diag_start",
+            "total": len(SUBSISTEMAS_METADATA),
+            "subsistemas": SUBSISTEMAS_METADATA
+        })
+
+        fala_intro = "Iniciando diagnóstico completo dos subsistemas neurais. Por favor, acompanhe o status na interface holográfica, senhor."
+        await atualizar_jarvis(cor_hex="#00ffff", texto=fala_intro, padrao="tarefa")
+        asyncio.create_task(voice_manager.falar("Jarvis", fala_intro, prioridade=1))
+
+        resultados = []
+        ok_count = 0
+        warn_count = 0
+        error_count = 0
+
+        # 2. Executa cada teste sequencialmente com feedback ao vivo
+        for sub in SUBSISTEMAS_METADATA:
+            if voice_manager.ABORTAR_FALA:
+                log.info("[DIAGNOSTICO] Abortado pelo usuário.")
+                break
+
+            sub_id = sub["id"]
+            nome = sub["nome"]
+
+            # Emite estado "testing" (scanner animado)
+            await enviar_evento_interface({
+                "type": "diag_step",
+                "id": sub_id,
+                "nome": nome,
+                "status": "testing",
+                "detalhe": "Executando varredura e checagem de latência...",
+                "latencia_ms": 0
+            })
+
+            # Executa o teste real
+            runner = TEST_RUNNERS.get(sub_id)
+            if runner:
+                status, detalhe, latencia = await runner()
+            else:
+                status, detalhe, latencia = "warn", "Teste não implementado", 0
+
+            if status == "ok":
+                ok_count += 1
+            elif status == "warn":
+                warn_count += 1
+            else:
+                error_count += 1
+
+            resultados.append({
+                "id": sub_id,
+                "nome": nome,
+                "status": status,
+                "detalhe": detalhe,
+                "latencia_ms": latencia
+            })
+
+            # Atualiza a linha com o resultado final do subsistema
+            await enviar_evento_interface({
+                "type": "diag_step",
+                "id": sub_id,
+                "nome": nome,
+                "status": status,
+                "detalhe": detalhe,
+                "latencia_ms": latencia
+            })
+
+            # Pausa rítmica estética de 350ms para desfile Sci-Fi
+            await asyncio.sleep(0.35)
+
+        total = len(SUBSISTEMAS_METADATA)
+        pct = int((ok_count / total) * 100) if total else 0
+        resumo_str = f"{ok_count}/{total} SISTEMAS OPERACIONAIS - {pct}% ONLINE"
+
+        ULTIMO_DIAGNOSTICO = {
+            "timestamp": time.strftime("%d/%m/%Y %H:%M:%S"),
+            "total": total,
+            "ok": ok_count,
+            "warn": warn_count,
+            "error": error_count,
+            "pct": pct,
+            "resultados": resultados
+        }
+
+        # 3. Notifica a conclusão para a HUD
+        await enviar_evento_interface({
+            "type": "diag_end",
+            "total": total,
+            "ok": ok_count,
+            "warn": warn_count,
+            "error": error_count,
+            "pct": pct,
+            "resumo": resumo_str
+        })
+
+        # 4. Síntese de voz executiva do Jarvis
+        if error_count == 0 and warn_count == 0:
+            fala_final = "Diagnóstico concluído com sucesso, senhor. Todos os oito subsistemas estão 100% online e operando em capacidade nominal."
+            cor_final = "#00ff88"
+        elif error_count > 0:
+            fala_final = f"Diagnóstico finalizado, senhor. Identifiquei {ok_count} sistemas operacionais, porém detectei {error_count} falha crítica que requer atenção imediata."
+            cor_final = "#ff0055"
+        else:
+            fala_final = f"Diagnóstico concluído, senhor. {ok_count} sistemas estão plenamente operacionais e {warn_count} módulos requerem pequenos ajustes ou login."
+            cor_final = "#ffaa00"
+
+        await atualizar_jarvis(cor_hex=cor_final, texto=fala_final, padrao="conversa")
+        await voice_manager.falar("Jarvis", fala_final, prioridade=1)
+
+    except Exception as e:
+        log.error(f"[DIAGNOSTICO] Falha durante execução: {e}")
+        await enviar_evento_interface({
+            "type": "diag_end",
+            "total": 8,
+            "ok": 0,
+            "error": 8,
+            "resumo": "FALHA NO DIAGNÓSTICO GERAL"
+        })
+    finally:
+        DIAGNOSTICO_EM_ANDAMENTO = False
+
+```
+
+
+==================================================
  ARQUIVO: .\MODULOS\skills\fii_monitor.py
 ==================================================
 
@@ -9598,6 +11306,338 @@ if __name__ == "__main__":
     print("[Jarvis Debug Engine] Buscando métricas...\n")
     relatorio_para_tts = obter_resumo_fiis()
     print(relatorio_para_tts)
+
+```
+
+
+==================================================
+ ARQUIVO: .\MODULOS\skills\google_mcp_module.py
+==================================================
+
+```python
+"""
+google_mcp_module.py
+────────────────────
+Integração com o ecossistema Google Workspace (Google Calendar e Google Drive)
+utilizando autenticação oficial OAuth2 via Google API Client.
+Permite listar/criar eventos na agenda Google e buscar arquivos no Google Drive.
+"""
+
+import os
+import json
+import datetime
+from datetime import timezone
+from typing import Optional
+
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+
+from MODULOS.system.logger import log
+from MODULOS.skills import reminders_module
+
+SCOPES = [
+    'https://www.googleapis.com/auth/calendar',
+    'https://www.googleapis.com/auth/drive.readonly'
+]
+
+CREDS_FILE = "DADOS/google_credentials.json"
+TOKEN_FILE = "DADOS/google_token.json"
+
+
+def obter_credenciais_google() -> Optional[Credentials]:
+    """
+    Carrega e valida as credenciais OAuth2 do Google a partir do TOKEN_FILE.
+    Se o token estiver expirado e tiver refresh token, renova automaticamente.
+    """
+    creds = None
+    if os.path.exists(TOKEN_FILE):
+        try:
+            creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
+        except Exception as e:
+            log.warning(f"[GOOGLE] Erro ao carregar {TOKEN_FILE}: {e}")
+
+    if creds and creds.expired and creds.refresh_token:
+        try:
+            creds.refresh(Request())
+            with open(TOKEN_FILE, "w", encoding="utf-8") as token_f:
+                token_f.write(creds.to_json())
+            log.info("[GOOGLE] Token de acesso renovado com sucesso.")
+        except Exception as e:
+            log.warning(f"[GOOGLE] Falha ao renovar token OAuth: {e}")
+            creds = None
+
+    return creds if (creds and creds.valid) else None
+
+
+def obter_status_google_auth() -> dict:
+    """Retorna o status atual da integração com o Google Workspace."""
+    configurado = os.path.exists(CREDS_FILE)
+    creds = obter_credenciais_google()
+    autenticado = creds is not None
+
+    if autenticado:
+        mensagem = "Conta Google conectada e autenticada com sucesso."
+    elif configurado:
+        mensagem = "Arquivo de credenciais presente. Clique para autenticar no navegador."
+    else:
+        mensagem = "Credenciais não configuradas. Coloque o arquivo google_credentials.json na pasta DADOS/."
+
+    return {
+        "configurado": configurado,
+        "autenticado": autenticado,
+        "mensagem": mensagem
+    }
+
+
+def iniciar_fluxo_autenticacao_google() -> dict:
+    """
+    Inicia o fluxo de autorização OAuth2 abrindo o navegador do usuário.
+    Gera e salva o token em DADOS/google_token.json.
+    """
+    if not os.path.exists(CREDS_FILE):
+        return {
+            "sucesso": False,
+            "mensagem": "Arquivo DADOS/google_credentials.json não encontrado. Obtenha as credenciais OAuth no Google Cloud Console."
+        }
+
+    try:
+        flow = InstalledAppFlow.from_client_secrets_file(CREDS_FILE, SCOPES)
+        creds = flow.run_local_server(port=0, prompt='consent')
+        with open(TOKEN_FILE, "w", encoding="utf-8") as token_f:
+            token_f.write(creds.to_json())
+        log.info("[GOOGLE] Autenticação OAuth2 realizada com sucesso!")
+        return {
+            "sucesso": True,
+            "mensagem": "Autenticação concluída! O Jarvis agora tem acesso ao seu Google Calendar e Google Drive."
+        }
+    except Exception as e:
+        log.error(f"[GOOGLE] Erro no fluxo OAuth2: {e}")
+        return {
+            "sucesso": False,
+            "mensagem": f"Erro durante a autenticação Google: {str(e)}"
+        }
+
+
+# ──────────────────────────────────────────────────────────
+# 1. GOOGLE CALENDAR
+# ──────────────────────────────────────────────────────────
+
+def listar_eventos_google_calendar(max_results: int = 5) -> list[dict]:
+    """
+    Busca os próximos eventos reais da agenda Google do usuário.
+    Retorna uma lista estruturada de eventos.
+    """
+    creds = obter_credenciais_google()
+    if not creds:
+        log.info("[GOOGLE/CALENDAR] Usuário não autenticado no Google.")
+        return []
+
+    try:
+        service = build('calendar', 'v3', credentials=creds, cache_discovery=False)
+        agora = datetime.datetime.now(timezone.utc).isoformat()
+        
+        events_result = service.events().list(
+            calendarId='primary',
+            timeMin=agora,
+            maxResults=max_results,
+            singleEvents=True,
+            orderBy='startTime'
+        ).execute()
+
+        items = events_result.get('items', [])
+        eventos = []
+
+        for item in items:
+            inicio = item.get('start', {}).get('dateTime') or item.get('start', {}).get('date', '')
+            fim = item.get('end', {}).get('dateTime') or item.get('end', {}).get('date', '')
+            titulo = item.get('summary', 'Sem Título')
+
+            horario_formatado = "--:--"
+            if "T" in inicio:
+                try:
+                    dt = datetime.datetime.fromisoformat(inicio.replace("Z", "+00:00"))
+                    horario_formatado = dt.strftime("%H:%M")
+                except Exception:
+                    pass
+
+            eventos.append({
+                "id": item.get('id'),
+                "titulo": titulo,
+                "inicio": inicio,
+                "fim": fim,
+                "horario": horario_formatado,
+                "link": item.get('htmlLink', ''),
+                "origem": "google_calendar"
+            })
+
+        log.info(f"[GOOGLE/CALENDAR] {len(eventos)} eventos obtidos da agenda.")
+        return eventos
+
+    except Exception as e:
+        log.error(f"[GOOGLE/CALENDAR] Erro ao listar eventos: {e}")
+        return []
+
+
+def criar_evento_google_calendar(titulo: str, data_hora_iso: str = None, duracao_min: int = 60) -> dict:
+    """
+    Cria um novo evento no Google Agenda do usuário.
+    Se a conta Google não estiver conectada, salva no reminders_module como fallback local.
+    """
+    creds = obter_credenciais_google()
+    
+    # Se não tiver hora informada, define para daqui a 1 hora
+    if not data_hora_iso:
+        dt_inicio = datetime.datetime.now() + datetime.timedelta(hours=1)
+    else:
+        try:
+            dt_inicio = datetime.datetime.fromisoformat(data_hora_iso)
+        except Exception:
+            dt_inicio = datetime.datetime.now() + datetime.timedelta(hours=1)
+
+    dt_fim = dt_inicio + datetime.timedelta(minutes=duracao_min)
+    horario_str = dt_inicio.strftime("%H:%M")
+
+    # Salva sempre nos lembretes locais como redundância
+    lembrete_local = reminders_module.adicionar_lembrete(titulo, horario=horario_str)
+
+    if not creds:
+        log.info(f"[GOOGLE/CALENDAR] Sem conta Google conectada. Evento salvo nos lembretes locais.")
+        return {
+            "sucesso": True,
+            "origem": "local_fallback",
+            "titulo": titulo,
+            "horario": horario_str,
+            "mensagem": f"Evento '{titulo}' agendado nos lembretes locais para às {horario_str} (conecte a conta Google para sincronizar com sua agenda online)."
+        }
+
+    try:
+        service = build('calendar', 'v3', credentials=creds, cache_discovery=False)
+        evento_body = {
+            'summary': titulo,
+            'description': f'Criado automaticamente pelo Jarvis Neural Assistant em {datetime.datetime.now().strftime("%d/%m/%Y %H:%M")}.',
+            'start': {
+                'dateTime': dt_inicio.astimezone().isoformat(),
+            },
+            'end': {
+                'dateTime': dt_fim.astimezone().isoformat(),
+            },
+        }
+
+        created_event = service.events().insert(calendarId='primary', body=evento_body).execute()
+        link = created_event.get('htmlLink', '')
+        log.info(f"[GOOGLE/CALENDAR] Evento '{titulo}' criado com sucesso no Google Calendar.")
+
+        return {
+            "sucesso": True,
+            "origem": "google_calendar",
+            "id": created_event.get('id'),
+            "titulo": titulo,
+            "horario": horario_str,
+            "link": link,
+            "mensagem": f"Evento '{titulo}' agendado no seu Google Calendar para às {horario_str} com sucesso, senhor."
+        }
+    except Exception as e:
+        log.error(f"[GOOGLE/CALENDAR] Falha ao criar evento no Google Calendar: {e}")
+        return {
+            "sucesso": True,
+            "origem": "local_fallback",
+            "titulo": titulo,
+            "horario": horario_str,
+            "mensagem": f"Evento salvo nos lembretes locais para às {horario_str}, senhor (houve uma instabilidade na API do Google Calendar)."
+        }
+
+
+# ──────────────────────────────────────────────────────────
+# 2. GOOGLE DRIVE
+# ──────────────────────────────────────────────────────────
+
+def buscar_arquivos_google_drive(termo: str = "", max_results: int = 6) -> list[dict]:
+    """
+    Busca arquivos no Google Drive.
+    Se o termo for genérico ou de teste, lista os arquivos mais recentes sem filtro restritivo de nome.
+    Se houver nome específico de arquivo, limpa a query e filtra com 'name contains'.
+    """
+    creds = obter_credenciais_google()
+    if not creds:
+        log.info("[GOOGLE/DRIVE] Usuário não autenticado no Google.")
+        return []
+
+    try:
+        service = build('drive', 'v3', credentials=creds, cache_discovery=False)
+        
+        t_clean = termo.strip().lower() if termo else ""
+        termos_genericos = {
+            "teste", "testar", "acessar", "acesso", "aleatórios", "aleatorios",
+            "aleatorio", "aleatório", "alguns", "listar", "liste", "meus", "meu",
+            "recentes", "recente", "tudo", "quais", "arquivos", "arquivo",
+            "documentos", "documento", "pasta", "drive", "google", "no drive",
+            "no google drive", "por favor", "mim", "para", "pra", "de", "do", "da",
+            "que", "estão", "estao", "no", "na", "nos", "nas", "tem", "há", "ha",
+            "tiver", "estiver", "minha", "minhas", "conta", "me", "mostre",
+            "mostrar", "veja", "ver", "dá", "da", "uma", "olhada", "tenta", "tente"
+        }
+
+        # Limpa pontuações e extrai palavras
+        import re
+        t_filtrado = re.sub(
+            r"\b(jarvis|faz um teste|fazer teste|teste para mim|teste pra mim|tenta acessar|tente acessar|tenta entrar|acessar o|acessar meu|liste alguns|listar alguns|arquivos aleatórios|arquivos aleatorios|que estão no|que estao no|que estão|que estao|no google drive|no drive|google drive|drive|arquivos|arquivo|documentos|documento|por favor)\b",
+            " ",
+            t_clean,
+            flags=re.IGNORECASE
+        )
+        palavras_relevantes = [p for p in re.sub(r"[^\w\s]", " ", t_filtrado).split() if p and p not in termos_genericos]
+
+        termo_alvo = " ".join(palavras_relevantes).strip()
+        if not palavras_relevantes or len(termo_alvo) <= 2:
+            # Query sem restrição de nome para trazer arquivos recentes reais
+            q = "trashed = false"
+            log.info("[GOOGLE/DRIVE] Busca genérica ou listagem recente detectada. Listando arquivos recentes.")
+        else:
+            termo_escapado = termo_alvo.replace("'", "\\'")
+            q = f"name contains '{termo_escapado}' and trashed = false"
+            log.info(f"[GOOGLE/DRIVE] Filtrando arquivos por termo específico: '{termo_escapado}'")
+
+        results = service.files().list(
+            q=q,
+            pageSize=max_results,
+            orderBy="modifiedTime desc",
+            fields="files(id, name, mimeType, webViewLink, modifiedTime, size)"
+        ).execute()
+
+        files = results.get('files', [])
+        arquivos = []
+
+        for f in files:
+            file_id = f.get('id')
+            mime = f.get('mimeType', '')
+            conteudo_snippet = ""
+
+            # Se for Google Docs, exporta como plain text para ler o conteúdo
+            if mime == 'application/vnd.google-apps.document':
+                try:
+                    doc_bytes = service.files().export(fileId=file_id, mimeType='text/plain').execute()
+                    texto_doc = doc_bytes.decode('utf-8', errors='ignore')
+                    conteudo_snippet = texto_doc[:300].strip().replace('\n', ' ')
+                except Exception:
+                    pass
+
+            arquivos.append({
+                "id": file_id,
+                "nome": f.get('name'),
+                "tipo": mime,
+                "link": f.get('webViewLink', ''),
+                "modificado": f.get('modifiedTime', ''),
+                "snippet": conteudo_snippet
+            })
+
+        log.info(f"[GOOGLE/DRIVE] {len(arquivos)} arquivo(s) localizado(s).")
+        return arquivos
+
+    except Exception as e:
+        log.error(f"[GOOGLE/DRIVE] Erro ao buscar arquivos: {e}")
+        return []
 
 ```
 
@@ -10559,6 +12599,908 @@ async def executar_comandos_mcp_ou_web(pergunta: str) -> str:
 
 
 ==================================================
+ ARQUIVO: .\MODULOS\skills\music_module.py
+==================================================
+
+```python
+"""
+music_module.py
+───────────────
+Media Hub Unificado do Jarvis: Suporte a YouTube Music/Audio Streaming,
+Músicas Locais Offline do Computador e Controle Nativo do Spotify.
+Gerencia estado de reprodução, sincronização via WebSocket para o HUD e comandos de voz.
+"""
+
+import os
+import sys
+import json
+import random
+import asyncio
+import urllib.parse
+import webbrowser
+import ctypes
+from datetime import datetime
+
+import yt_dlp
+from MODULOS.system.logger import log
+from MODULOS.system.comunicacao_visual import enviar_evento_interface
+
+# Teclas virtuais de mídia do Windows para controle de hardware / Spotify Desktop
+VK_MEDIA_NEXT_TRACK = 0xB0
+VK_MEDIA_PREV_TRACK = 0xB1
+VK_MEDIA_STOP = 0xB2
+VK_MEDIA_PLAY_PAUSE = 0xB3
+
+def simular_tecla_midia(vk_code: int):
+    """Dispara tecla virtual de mídia via API Win32 User32."""
+    try:
+        ctypes.windll.user32.keybd_event(vk_code, 0, 0, 0)
+        ctypes.windll.user32.keybd_event(vk_code, 0, 2, 0) # Key up
+    except Exception as e:
+        log.warning(f"[MUSICA] Falha ao simular tecla de mídia Win32 ({hex(vk_code)}): {e}")
+
+# Estado Global do Player sincronizado com o Mini-Player do HUD
+ESTADO_PLAYER = {
+    "fonte": "youtube",        # "youtube" | "local" | "spotify"
+    "tocando": False,
+    "titulo": "Nenhuma mídia ativa",
+    "artista": "Jarvis Media Hub",
+    "capa": "",
+    "duracao": "0:00",
+    "duracao_segundos": 0,
+    "progresso_segundos": 0,
+    "stream_url": "",
+    "webpage_url": "",
+    "volume": 80,
+    "caminho": ""
+}
+
+PLAYLIST_LOCAL: list[str] = []
+INDICE_PLAYLIST_LOCAL = 0
+
+def formatar_segundos(segundos: int | float | None) -> str:
+    if not segundos or segundos <= 0:
+        return "0:00"
+    s = int(segundos)
+    m = s // 60
+    s_rest = s % 60
+    return f"{m}:{s_rest:02d}"
+
+# ──────────────────────────────────────────────────────────
+# 1. YOUTUBE MUSIC & AUDIO STREAMING (yt_dlp)
+# ──────────────────────────────────────────────────────────
+
+async def tocar_youtube(termo: str) -> dict:
+    """
+    Busca termo no YouTube via yt_dlp, extrai stream direto de áudio e metadados,
+    atualiza o ESTADO_PLAYER e notifica o HUD.
+    """
+    global ESTADO_PLAYER
+    log.info(f"[MUSICA/YOUTUBE] Buscando áudio para: '{termo}'")
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'quiet': True,
+        'no_warnings': True,
+        'extract_flat': False,
+        'default_search': 'ytsearch1',
+        'noplaylist': True,
+        'socket_timeout': 12
+    }
+
+    def _extrair():
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            return ydl.extract_info(f"ytsearch1:{termo}", download=False)
+
+    try:
+        loop = asyncio.get_running_loop()
+        info = await loop.run_in_executor(None, _extrair)
+
+        if not info:
+            raise ValueError("Nenhum resultado retornado pelo YouTube.")
+
+        if 'entries' in info and info['entries']:
+            entry = info['entries'][0]
+        else:
+            entry = info
+
+        titulo = entry.get('title', termo)
+        artista = entry.get('uploader') or entry.get('channel') or "YouTube"
+        capa = entry.get('thumbnail') or "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80"
+        duracao_segundos = entry.get('duration', 0)
+        duracao_str = formatar_segundos(duracao_segundos)
+        stream_url = entry.get('url', '')
+        webpage_url = entry.get('webpage_url', f"https://www.youtube.com/watch?v={entry.get('id', '')}")
+
+        ESTADO_PLAYER.update({
+            "fonte": "youtube",
+            "tocando": True,
+            "titulo": titulo,
+            "artista": artista,
+            "capa": capa,
+            "duracao": duracao_str,
+            "duracao_segundos": duracao_segundos,
+            "progresso_segundos": 0,
+            "stream_url": stream_url,
+            "webpage_url": webpage_url,
+            "caminho": ""
+        })
+
+        await enviar_evento_interface({"type": "music_update", "track": ESTADO_PLAYER})
+        log.info(f"[MUSICA/YOUTUBE] Faixa carregada: '{titulo}' ({duracao_str})")
+        return ESTADO_PLAYER
+
+    except Exception as e:
+        log.error(f"[MUSICA/YOUTUBE] Erro ao buscar áudio do YouTube para '{termo}': {e}")
+        return {"erro": str(e)}
+
+# ──────────────────────────────────────────────────────────
+# 2. MÚSICAS LOCAIS OFFLINE DO COMPUTADOR
+# ──────────────────────────────────────────────────────────
+
+PASTA_MUSICAS_LOCAIS = os.path.abspath("MUSICAS_LOCAIS")
+os.makedirs(PASTA_MUSICAS_LOCAIS, exist_ok=True)
+PEDIDO_MUSICA_PENDENTE: str | None = None
+
+def obter_pastas_musica() -> list[str]:
+    """Obtém pastas para varredura de arquivos locais."""
+    pastas = [
+        PASTA_MUSICAS_LOCAIS,
+        os.path.expanduser("~/Music"),
+        "C:\\Users\\felip\\Music"
+    ]
+    cfg_path = "DADOS/music_config.json"
+    if os.path.exists(cfg_path):
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                custom = cfg.get("pastas_locais", [])
+                for p in custom:
+                    if p and os.path.exists(p) and p not in pastas:
+                        pastas.append(p)
+        except Exception:
+            pass
+    return [p for p in pastas if os.path.exists(p)]
+
+def escanear_arquivos_locais() -> list[str]:
+    """Varre pastas em busca de extensões de áudio suportadas."""
+    extensoes = ('.mp3', '.wav', '.flac', '.ogg', '.m4a', '.opus', '.webm')
+    arquivos = []
+    pastas = obter_pastas_musica()
+    for pasta in pastas:
+        for root, _, files in os.walk(pasta):
+            for file in files:
+                if file.lower().endswith(extensoes):
+                    arquivos.append(os.path.join(root, file))
+    return arquivos
+
+def formatar_titulo_local(caminho: str) -> str:
+    """Extrai e limpa o título do arquivo local, removendo sufixos de ID do YouTube como [lbehxlFIlpc]."""
+    import re
+    nome_base = os.path.splitext(os.path.basename(caminho))[0]
+    nome_limpo = re.sub(r"\s*\[[a-zA-Z0-9_\-]{6,16}\]", "", nome_base).strip()
+    return nome_limpo if nome_limpo else nome_base
+
+async def tocar_local(termo: str = "") -> dict:
+    """
+    Toca uma música offline local do computador ou monta playlist aleatória.
+    """
+    global ESTADO_PLAYER, PLAYLIST_LOCAL, INDICE_PLAYLIST_LOCAL
+    arquivos = escanear_arquivos_locais()
+
+    if not arquivos:
+        log.warning("[MUSICA/LOCAL] Nenhum arquivo de áudio encontrado nas pastas de música do PC.")
+        return {
+            "erro": "Nenhuma música offline encontrada nas pastas de música.",
+            "mensagem": "Não encontrei arquivos de áudio em sua pasta Músicas, senhor."
+        }
+
+    caminho_escolhido = None
+    termo_limpo = termo.strip().lower()
+
+    if termo_limpo and termo_limpo not in ["minhas músicas", "minhas musicas", "música offline", "musica offline", "aleatório", "aleatorio", "offline"]:
+        # Busca exata ou substring
+        for arq in arquivos:
+            nome_arq = os.path.splitext(os.path.basename(arq))[0].lower()
+            if termo_limpo in nome_arq:
+                caminho_escolhido = arq
+                break
+        
+        # Se não achou por substring direta, busca por palavras-chave
+        if not caminho_escolhido:
+            palavras = [p for p in termo_limpo.split() if len(p) > 2]
+            for arq in arquivos:
+                nome_arq = os.path.splitext(os.path.basename(arq))[0].lower()
+                if any(w in nome_arq for w in palavras):
+                    caminho_escolhido = arq
+                    break
+
+    if not caminho_escolhido:
+        # Modo shuffle da biblioteca
+        PLAYLIST_LOCAL = list(arquivos)
+        random.shuffle(PLAYLIST_LOCAL)
+        INDICE_PLAYLIST_LOCAL = 0
+        caminho_escolhido = PLAYLIST_LOCAL[0]
+    else:
+        PLAYLIST_LOCAL = [caminho_escolhido]
+        INDICE_PLAYLIST_LOCAL = 0
+
+    url_stream = f"/api/music/stream?path={urllib.parse.quote(caminho_escolhido)}"
+    titulo_formatado = formatar_titulo_local(caminho_escolhido)
+
+    ESTADO_PLAYER.update({
+        "fonte": "local",
+        "tocando": True,
+        "titulo": titulo_formatado,
+        "artista": "Mídia Local (PC)",
+        "capa": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80",
+        "duracao": "--:--",
+        "duracao_segundos": 0,
+        "progresso_segundos": 0,
+        "stream_url": url_stream,
+        "webpage_url": "",
+        "caminho": caminho_escolhido
+    })
+
+    await enviar_evento_interface({"type": "music_update", "track": ESTADO_PLAYER})
+    log.info(f"[MUSICA/LOCAL] Reproduzindo arquivo local: '{titulo_formatado}'")
+    return ESTADO_PLAYER
+
+# ──────────────────────────────────────────────────────────
+# 3. CONTROLE NATIVO DO SPOTIFY (Desktop URI & Win32 Media Keys)
+# ──────────────────────────────────────────────────────────
+
+async def controlar_spotify(acao_ou_musica: str) -> dict:
+    """
+    Controla o Spotify Desktop via URI de busca e/ou teclas de mídia do Windows.
+    Suporta spotipy caso credenciais existam em DADOS/spotify_config.json.
+    """
+    global ESTADO_PLAYER
+    termo = acao_ou_musica.strip()
+    termo_lower = termo.lower()
+
+    # Verifica se há credenciais da API do Spotify
+    config_spotipy = None
+    if os.path.exists("DADOS/spotify_config.json"):
+        try:
+            with open("DADOS/spotify_config.json", "r", encoding="utf-8") as f:
+                cfg = json.load(f)
+                if cfg.get("SPOTIPY_CLIENT_ID") and cfg.get("SPOTIPY_CLIENT_SECRET"):
+                    config_spotipy = cfg
+        except Exception:
+            pass
+
+    if config_spotipy:
+        try:
+            import spotipy
+            from spotipy.oauth2 import SpotifyOAuth
+            sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+                client_id=config_spotipy["SPOTIPY_CLIENT_ID"],
+                client_secret=config_spotipy["SPOTIPY_CLIENT_SECRET"],
+                redirect_uri=config_spotipy.get("SPOTIPY_REDIRECT_URI", "http://localhost:8888/callback"),
+                scope="user-modify-playback-state,user-read-playback-state"
+            ))
+            if termo_lower in ["pause", "pausar"]:
+                sp.pause_playback()
+                ESTADO_PLAYER["tocando"] = False
+            elif termo_lower in ["next", "proxima", "próxima"]:
+                sp.next_track()
+                ESTADO_PLAYER["tocando"] = True
+            elif termo_lower in ["prev", "anterior"]:
+                sp.previous_track()
+                ESTADO_PLAYER["tocando"] = True
+            elif termo:
+                sp.start_playback(uris=[f"spotify:track:{termo}"])
+                ESTADO_PLAYER.update({"tocando": True, "titulo": termo, "fonte": "spotify"})
+            await enviar_evento_interface({"type": "music_update", "track": ESTADO_PLAYER})
+            return ESTADO_PLAYER
+        except Exception as e_spot:
+            log.warning(f"[MUSICA/SPOTIFY] API Spotipy não respondeu ({e_spot}). Alternando para controle de Desktop...")
+
+    # Fallback Nativo Instantâneo: Desktop URI + Teclas Win32
+    if termo_lower in ["pause", "pausar", "parar"]:
+        simular_tecla_midia(VK_MEDIA_PLAY_PAUSE)
+        ESTADO_PLAYER["tocando"] = False
+        ESTADO_PLAYER["fonte"] = "spotify"
+    elif termo_lower in ["play", "continuar", "retomar", "despausar"]:
+        simular_tecla_midia(VK_MEDIA_PLAY_PAUSE)
+        ESTADO_PLAYER["tocando"] = True
+        ESTADO_PLAYER["fonte"] = "spotify"
+    elif termo_lower in ["next", "proxima", "próxima", "pular"]:
+        simular_tecla_midia(VK_MEDIA_NEXT_TRACK)
+        ESTADO_PLAYER["tocando"] = True
+        ESTADO_PLAYER["fonte"] = "spotify"
+    elif termo_lower in ["prev", "anterior", "voltar"]:
+        simular_tecla_midia(VK_MEDIA_PREV_TRACK)
+        ESTADO_PLAYER["tocando"] = True
+        ESTADO_PLAYER["fonte"] = "spotify"
+    else:
+        # Abrir/buscar música no Spotify Desktop
+        termo_busca = termo
+        for prefix in ["tocar no spotify", "toque no spotify", "toca no spotify", "no spotify", "tocar", "toque", "toca"]:
+            if termo_busca.lower().startswith(prefix):
+                termo_busca = termo_busca[len(prefix):].strip()
+        termo_busca = termo_busca.strip(' "\'')
+
+        spotify_uri = f"spotify:search:{urllib.parse.quote(termo_busca)}" if termo_busca else "spotify:"
+        try:
+            # Abre o cliente nativo do Spotify Desktop
+            os.system(f'start {spotify_uri}')
+            log.info(f"[MUSICA/SPOTIFY] Abrindo URI no Spotify Desktop: {spotify_uri}")
+        except Exception as e:
+            webbrowser.open(spotify_uri)
+
+        # Aguarda breve momento e dá Play caso necessário
+        await asyncio.sleep(1.2)
+        simular_tecla_midia(VK_MEDIA_PLAY_PAUSE)
+
+        ESTADO_PLAYER.update({
+            "fonte": "spotify",
+            "tocando": True,
+            "titulo": termo_busca if termo_busca else "Spotify Desktop",
+            "artista": "Spotify",
+            "capa": "https://images.unsplash.com/photo-1614680376593-902f749f7ffc?w=400&q=80",
+            "duracao": "--:--",
+            "duracao_segundos": 0,
+            "progresso_segundos": 0,
+            "stream_url": "", # Reproduzido pelo app do Spotify
+            "webpage_url": f"https://open.spotify.com/search/{urllib.parse.quote(termo_busca)}",
+            "caminho": ""
+        })
+
+    await enviar_evento_interface({"type": "music_update", "track": ESTADO_PLAYER})
+    return ESTADO_PLAYER
+
+# ──────────────────────────────────────────────────────────
+# 4. CONTROLES GLOBAIS DE REPRODUÇÃO
+# ──────────────────────────────────────────────────────────
+
+async def pausar() -> dict:
+    global ESTADO_PLAYER
+    if ESTADO_PLAYER["fonte"] == "spotify":
+        simular_tecla_midia(VK_MEDIA_PLAY_PAUSE)
+    ESTADO_PLAYER["tocando"] = False
+    await enviar_evento_interface({"type": "music_update", "track": ESTADO_PLAYER})
+    return ESTADO_PLAYER
+
+async def continuar() -> dict:
+    global ESTADO_PLAYER
+    if ESTADO_PLAYER["fonte"] == "spotify":
+        simular_tecla_midia(VK_MEDIA_PLAY_PAUSE)
+    ESTADO_PLAYER["tocando"] = True
+    await enviar_evento_interface({"type": "music_update", "track": ESTADO_PLAYER})
+    return ESTADO_PLAYER
+
+async def proxima() -> dict:
+    global ESTADO_PLAYER, PLAYLIST_LOCAL, INDICE_PLAYLIST_LOCAL
+    if ESTADO_PLAYER["fonte"] == "spotify":
+        simular_tecla_midia(VK_MEDIA_NEXT_TRACK)
+        ESTADO_PLAYER["tocando"] = True
+        await enviar_evento_interface({"type": "music_update", "track": ESTADO_PLAYER})
+        return ESTADO_PLAYER
+    elif ESTADO_PLAYER["fonte"] == "local" and PLAYLIST_LOCAL:
+        INDICE_PLAYLIST_LOCAL = (INDICE_PLAYLIST_LOCAL + 1) % len(PLAYLIST_LOCAL)
+        arq = PLAYLIST_LOCAL[INDICE_PLAYLIST_LOCAL]
+        titulo_limpo = formatar_titulo_local(arq)
+        ESTADO_PLAYER.update({
+            "titulo": titulo_limpo,
+            "stream_url": f"/api/music/stream?path={urllib.parse.quote(arq)}",
+            "caminho": arq,
+            "tocando": True
+        })
+        await enviar_evento_interface({"type": "music_update", "track": ESTADO_PLAYER})
+        return ESTADO_PLAYER
+    return ESTADO_PLAYER
+
+async def anterior() -> dict:
+    global ESTADO_PLAYER, PLAYLIST_LOCAL, INDICE_PLAYLIST_LOCAL
+    if ESTADO_PLAYER["fonte"] == "spotify":
+        simular_tecla_midia(VK_MEDIA_PREV_TRACK)
+        ESTADO_PLAYER["tocando"] = True
+        await enviar_evento_interface({"type": "music_update", "track": ESTADO_PLAYER})
+        return ESTADO_PLAYER
+    elif ESTADO_PLAYER["fonte"] == "local" and PLAYLIST_LOCAL:
+        INDICE_PLAYLIST_LOCAL = (INDICE_PLAYLIST_LOCAL - 1) % len(PLAYLIST_LOCAL)
+        arq = PLAYLIST_LOCAL[INDICE_PLAYLIST_LOCAL]
+        titulo_limpo = formatar_titulo_local(arq)
+        ESTADO_PLAYER.update({
+            "titulo": titulo_limpo,
+            "stream_url": f"/api/music/stream?path={urllib.parse.quote(arq)}",
+            "caminho": arq,
+            "tocando": True
+        })
+        await enviar_evento_interface({"type": "music_update", "track": ESTADO_PLAYER})
+        return ESTADO_PLAYER
+    return ESTADO_PLAYER
+
+async def definir_volume(vol: int) -> dict:
+    global ESTADO_PLAYER
+    vol_clamped = max(0, min(100, int(vol)))
+    ESTADO_PLAYER["volume"] = vol_clamped
+    await enviar_evento_interface({"type": "music_update", "track": ESTADO_PLAYER})
+    return ESTADO_PLAYER
+
+def obter_status() -> dict:
+    return dict(ESTADO_PLAYER)
+
+# ──────────────────────────────────────────────────────────
+PLAYLIST_STARK = [
+    "AC/DC Back in Black",
+    "AC/DC Shoot to Thrill",
+    "Black Sabbath Iron Man",
+    "Led Zeppelin Immigrant Song",
+    "The Rolling Stones Paint It Black",
+    "Queen Don't Stop Me Now",
+    "Guns N' Roses Sweet Child O' Mine",
+    "AC/DC Highway to Hell",
+    "ZZ Top La Grange",
+    "Kavinsky Nightcall"
+]
+
+def _limpar_query_musica(texto: str) -> str:
+    """
+    Remove frases acessórias, saudações e comandos de teste,
+    extraindo estritamente o nome da música / artista.
+    Se o termo ficar vazio, escolhe uma música da playlist estilo Tony Stark.
+    """
+    import re
+    t = texto.lower().strip()
+
+    expressoes_remover = [
+        r"\bjarvis\b",
+        r"\bteste o sistema de m[úu]sica\b",
+        r"\bteste de m[úu]sica\b",
+        r"\bteste o sistema\b",
+        r"\bteste\b",
+        r"\btoco\b",
+        r"\btoque\b",
+        r"\btocar\b",
+        r"\btoca\b",
+        r"\bcoloque\b",
+        r"\bcoloca\b",
+        r"\bbote\b",
+        r"\bbota\b",
+        r"\breproduza\b",
+        r"\breproduzir\b",
+        r"\bsintonize\b",
+        r"\bsintonizar\b",
+        r"\bhá alguma\b",
+        r"\bha alguma\b",
+        r"\bhá\b",
+        r"\bha\b",
+        r"\btem alguma\b",
+        r"\btem\b",
+        r"\baí\b",
+        r"\bai\b",
+        r"\bpra mim\b",
+        r"\bpara mim\b",
+        r"\bpor favor\b",
+        r"\bpor gentileza\b",
+        r"\bno youtube\b",
+        r"\bno spotify\b",
+        r"\bno pc\b",
+        r"\bdo pc\b",
+        r"\bno computador\b",
+        r"\bdo computador\b",
+        r"\buma\b",
+        r"\balguma\b",
+        r"\bqualquer\b",
+        r"\ba m[úu]sica de\b",
+        r"\ba m[úu]sica do\b",
+        r"\ba m[úu]sica da\b",
+        r"\ba m[úu]sica\b",
+        r"\ba musica\b",
+        r"\bo som de\b",
+        r"\bo som do\b",
+        r"\bo som da\b",
+    ]
+
+    for pat in expressoes_remover:
+        t = re.sub(pat, " ", t, flags=re.IGNORECASE)
+
+    # Remove pontuações residuais
+    t = re.sub(r"[^\w\s\-\&]", " ", t)
+    t = re.sub(r"\s+", " ", t).strip()
+
+    if t in ["música", "musica", ""]:
+        escolha = random.choice(PLAYLIST_STARK)
+        log.info(f"[MUSICA] Query genérica. Modo Tony Stark ativado: '{escolha}'")
+        return escolha
+
+    return t
+
+# ──────────────────────────────────────────────────────────
+# 5. PROCESSADOR DE COMANDOS DE VOZ DO JARVIS
+# ──────────────────────────────────────────────────────────
+
+async def processar_comando_musica(comando: str) -> str:
+    """
+    Interpreta o comando de voz em português e executa a ação multimídia correspondente.
+    Retorna a fala de resposta elegante e objetiva do Jarvis para o TTS.
+    """
+    global PEDIDO_MUSICA_PENDENTE
+    cmd = comando.lower().strip()
+    log.info(f"[MUSICA] Processando comando de voz: '{comando}'")
+
+    # 0. Se há um pedido anterior pendente aguardando escolha de plataforma ("YouTube ou Spotify?")
+    if PEDIDO_MUSICA_PENDENTE:
+        musica_alvo = PEDIDO_MUSICA_PENDENTE
+        if any(k in cmd for k in ["spotify", "no spotify", "pelo spotify"]):
+            PEDIDO_MUSICA_PENDENTE = None
+            await controlar_spotify(musica_alvo)
+            return f"Iniciando '{musica_alvo}' no Spotify, senhor."
+        elif any(k in cmd for k in ["local", "locais", "offline", "computador", "pc", "minhas", "nas locais"]):
+            PEDIDO_MUSICA_PENDENTE = None
+            res = await tocar_local(musica_alvo)
+            if "erro" in res:
+                res_yt = await tocar_youtube(musica_alvo)
+                return f"Não encontrei '{musica_alvo}' no seu computador, senhor. Iniciando diretamente pelo YouTube."
+            return f"Reproduzindo sua biblioteca offline: '{res.get('titulo')}'."
+        elif any(k in cmd for k in ["youtube", "yt", "no youtube", "pelo youtube", "tanto faz", "qualquer", "pode ser", "sim"]):
+            PEDIDO_MUSICA_PENDENTE = None
+            res = await tocar_youtube(musica_alvo)
+            if "erro" in res:
+                return f"Senhor, tive uma instabilidade ao conectar com o YouTube: {res['erro']}."
+            return f"Sintonizando '{res.get('titulo')}' no YouTube Music."
+
+    # 1. Comandos de Pausa e Parada
+    if any(k in cmd for k in ["pausar música", "pausar musica", "pausa a música", "pausa a musica", "pause a música", "pause a musica", "pausar", "pause", "parar música", "parar musica", "pare a música", "pare a musica", "silenciar"]):
+        await pausar()
+        return "Música pausada, senhor."
+
+    # 2. Comandos de Retomada
+    if any(k in cmd for k in ["continuar música", "continuar musica", "retomar música", "retomar musica", "despausar", "continuar", "retomar"]):
+        await continuar()
+        return "Retomando a reprodução de áudio, senhor."
+
+    # 3. Próxima Faixa
+    if any(k in cmd for k in ["próxima música", "proxima musica", "próxima faixa", "proxima faixa", "pular música", "pular musica", "próxima", "proxima", "pular"]):
+        await proxima()
+        return f"Avançando para a próxima faixa no {ESTADO_PLAYER.get('fonte', 'player').upper()}."
+
+    # 4. Faixa Anterior
+    if any(k in cmd for k in ["música anterior", "musica anterior", "faixa anterior", "voltar música", "voltar musica", "anterior"]):
+        await anterior()
+        return f"Retornando à faixa anterior no {ESTADO_PLAYER.get('fonte', 'player').upper()}."
+
+    # 5. Controle de Volume
+    if "aumentar volume" in cmd or "aumenta o volume" in cmd:
+        novo_vol = min(100, ESTADO_PLAYER["volume"] + 20)
+        await definir_volume(novo_vol)
+        return f"Volume ajustado para {novo_vol} por cento."
+
+    if "diminuir volume" in cmd or "abaixar volume" in cmd or "baixa o volume" in cmd:
+        novo_vol = max(0, ESTADO_PLAYER["volume"] - 20)
+        await definir_volume(novo_vol)
+        return f"Volume reduzido para {novo_vol} por cento."
+
+    # 6. Spotify Explícito
+    if "spotify" in cmd:
+        PEDIDO_MUSICA_PENDENTE = None
+        termo = _limpar_query_musica(cmd)
+        await controlar_spotify(termo)
+        if termo and termo not in PLAYLIST_STARK:
+            return f"Iniciando '{termo}' no Spotify, senhor."
+        return "Abrindo o Spotify Desktop, senhor."
+
+    # 7. Músicas Locais Offline Explícito
+    if any(k in cmd for k in ["música offline", "musica offline", "minhas músicas", "minhas musicas", "música local", "musica local", "músicas do pc", "musicas do pc", "offline"]):
+        PEDIDO_MUSICA_PENDENTE = None
+        termo = _limpar_query_musica(cmd)
+        res = await tocar_local(termo)
+        if "erro" in res:
+            res_yt = await tocar_youtube(termo)
+            return f"Não encontrei músicas no seu PC, senhor. Iniciando '{res_yt.get('titulo')}' diretamente pelo YouTube."
+        return f"Reproduzindo sua biblioteca offline: '{res.get('titulo')}'."
+
+    # 8. YouTube Explícito
+    if any(k in cmd for k in ["no youtube", "pelo youtube", "no yt"]):
+        PEDIDO_MUSICA_PENDENTE = None
+        termo = _limpar_query_musica(cmd)
+        res = await tocar_youtube(termo)
+        if "erro" in res:
+            return f"Senhor, tive uma instabilidade ao conectar com o YouTube: {res['erro']}."
+        return f"Sintonizando '{res.get('titulo')}' no YouTube Music."
+
+    # 9. Pedido Geral de Música sem plataforma especificada: Pergunta qual plataforma usar
+    termo = _limpar_query_musica(cmd)
+    PEDIDO_MUSICA_PENDENTE = termo
+    log.info(f"[MUSICA] Pedido pendente registrado: '{termo}'. Solicitando escolha de plataforma.")
+    return f"Senhor, deseja que eu reproduza {termo} pelo YouTube, pelo Spotify ou a partir das suas músicas locais?"
+
+```
+
+
+==================================================
+ ARQUIVO: .\MODULOS\skills\pc_control_module.py
+==================================================
+
+```python
+"""
+pc_control_module.py
+────────────────────
+Mordomo de Sistema Operacional Windows & Controle de PC para o Jarvis.
+- Controle do Volume Master do Sistema Windows via PyCaw.
+- Leitura, análise e resumo inteligente da Área de Transferência (Clipboard) via Pyperclip + LLM.
+- Criação e organização de notas rápidas no Vault do Obsidian.
+"""
+
+import os
+import re
+import datetime
+from typing import Optional
+
+import pyperclip
+from pycaw.pycaw import AudioUtilities
+from MODULOS.system.logger import log
+
+# ──────────────────────────────────────────────────────────
+# 1. CONTROLE DE VOLUME DO SISTEMA WINDOWS (PYCAW)
+# ──────────────────────────────────────────────────────────
+
+def _obter_endpoint_volume():
+    """Retorna o endpoint de controle de volume dos alto-falantes padrão."""
+    try:
+        speakers = AudioUtilities.GetSpeakers()
+        if hasattr(speakers, 'EndpointVolume'):
+            return speakers.EndpointVolume
+        return None
+    except Exception as e:
+        log.error(f"[PC_CONTROL] Erro ao obter endpoint de volume PyCaw: {e}")
+        return None
+
+
+def obter_volume_sistema() -> int:
+    """Retorna o volume master atual do Windows (0 a 100)."""
+    try:
+        ep = _obter_endpoint_volume()
+        if ep:
+            scalar = ep.GetMasterVolumeLevelScalar()
+            return int(round(scalar * 100))
+    except Exception as e:
+        log.warning(f"[PC_CONTROL] Falha ao ler volume: {e}")
+    return 50
+
+
+def definir_volume_sistema(pct: int) -> str:
+    """Define o volume master do Windows para uma porcentagem exata (0 a 100)."""
+    try:
+        ep = _obter_endpoint_volume()
+        if not ep:
+            return "Não foi possível acessar o dispositivo de áudio do sistema, senhor."
+
+        pct_clamped = max(0, min(100, int(pct)))
+        scalar = pct_clamped / 100.0
+
+        # Se estava mutado, desmuta automaticamente ao alterar volume
+        if ep.GetMute():
+            ep.SetMute(0, None)
+
+        ep.SetMasterVolumeLevelScalar(scalar, None)
+        log.info(f"[PC_CONTROL] Volume master do sistema ajustado para {pct_clamped}%.")
+        return f"Volume do sistema ajustado para {pct_clamped} por cento, senhor."
+    except Exception as e:
+        log.error(f"[PC_CONTROL] Erro ao definir volume: {e}")
+        return "Tive um erro ao tentar alterar o volume do Windows, senhor."
+
+
+def ajustar_volume_sistema(delta: int) -> str:
+    """Aumenta ou diminui o volume master do sistema pelo delta especificado."""
+    vol_atual = obter_volume_sistema()
+    novo_vol = max(0, min(100, vol_atual + delta))
+    return definir_volume_sistema(novo_vol)
+
+
+def mutar_som_pc(mutar: Optional[bool] = None) -> str:
+    """Muta, desmuta ou alterna o som master do sistema."""
+    try:
+        ep = _obter_endpoint_volume()
+        if not ep:
+            return "Não foi possível acessar os drivers de áudio do sistema."
+
+        if mutar is None:
+            estado_atual = ep.GetMute()
+            novo_estado = 0 if estado_atual else 1
+        else:
+            novo_estado = 1 if mutar else 0
+
+        ep.SetMute(novo_estado, None)
+        status_txt = "mutado" if novo_estado else "desmutado"
+        log.info(f"[PC_CONTROL] Áudio do sistema {status_txt}.")
+        return f"Áudio do sistema {status_txt}, senhor."
+    except Exception as e:
+        log.error(f"[PC_CONTROL] Erro ao mutar áudio: {e}")
+        return "Erro ao alterar o estado de mudo do computador."
+
+
+# ──────────────────────────────────────────────────────────
+# 2. RESUMO E ANÁLISE DA ÁREA DE TRANSFERÊNCIA (CLIPBOARD)
+# ──────────────────────────────────────────────────────────
+
+async def processar_clipboard(comando: str = "") -> str:
+    """
+    Lê o texto atualmente copiado na área de transferência (Ctrl+C).
+    Se for curto, relata diretamente. Se for longo, sintetiza usando o LLM.
+    """
+    try:
+        texto_copiado = pyperclip.paste()
+    except Exception as e:
+        log.error(f"[PC_CONTROL] Erro ao acessar clipboard: {e}")
+        return "Não consegui acessar sua área de transferência no momento, senhor."
+
+    if not texto_copiado or not texto_copiado.strip():
+        return "Sua área de transferência está vazia no momento, senhor. Copie algum texto com Ctrl+C primeiro."
+
+    texto_copiado = texto_copiado.strip()
+    qtd_palavras = len(texto_copiado.split())
+    log.info(f"[PC_CONTROL] Clipboard capturado: {qtd_palavras} palavras ({len(texto_copiado)} caracteres).")
+
+    # Se for bem curto (até 150 caracteres), responde diretamente
+    if len(texto_copiado) <= 150 and "\n" not in texto_copiado:
+        return f'O texto copiado na sua área de transferência é: "{texto_copiado}".'
+
+    # Se for texto longo ou código, solicita síntese ao LLM do Jarvis
+    from MODULOS.brain.core.client_llm import consultar_llm
+
+    prompt_analise = f"""Você é o Jarvis. O usuário pediu para analisar ou resumir o texto que ele acabou de copiar na Área de Transferência do computador.
+Comando do usuário: "{comando}"
+Texto copiado ({len(texto_copiado)} caracteres):
+\"\"\"
+{texto_copiado[:3500]}
+\"\"\"
+
+Instruções:
+- Forneça uma resposta direta, elegante e concisa (máximo 2 a 3 frases faladas).
+- Se for um código, explique o que ele faz em uma frase.
+- Se for um artigo ou notícia, sintetize o ponto central e o resultado principal.
+- Não use markdown excessivo (será falado via TTS). Seja o assistente inteligente Tony Stark.
+"""
+
+    resposta_llm = await consultar_llm(prompt_analise, max_tokens=180)
+    if resposta_llm and resposta_llm.strip():
+        return resposta_llm.strip()
+
+    return f"O texto copiado possui {qtd_palavras} palavras. Trata-se de: {texto_copiado[:180]}..."
+
+
+# ──────────────────────────────────────────────────────────
+# 3. NOTAS RÁPIDAS NO OBSIDIAN VAULT
+# ──────────────────────────────────────────────────────────
+
+def _localizar_diretorio_obsidian() -> str:
+    """
+    Localiza o diretório do Obsidian Vault do usuário.
+    Tenta variável de ambiente, pastas comuns no usuário ou fallback em DADOS/Obsidian_Vault.
+    """
+    env_vault = os.environ.get("OBSIDIAN_VAULT")
+    if env_vault and os.path.isdir(env_vault):
+        return env_vault
+
+    user_home = os.path.expanduser("~")
+    possiveis = [
+        os.path.join(user_home, "Documents", "Obsidian Vault"),
+        os.path.join(user_home, "Documentos", "Obsidian Vault"),
+        os.path.join(user_home, "Obsidian"),
+        os.path.join(os.getcwd(), "DADOS", "Obsidian_Vault")
+    ]
+
+    for p in possiveis:
+        if os.path.isdir(p):
+            return p
+
+    # Cria pasta padrão se nenhuma existir
+    padrao = os.path.join(os.getcwd(), "DADOS", "Obsidian_Vault")
+    os.makedirs(padrao, exist_ok=True)
+    return padrao
+
+
+def salvar_nota_obsidian(titulo: str, conteudo: str) -> str:
+    """
+    Cria uma nova nota em formato Markdown no Vault do Obsidian com frontmatter.
+    """
+    diretorio = _localizar_diretorio_obsidian()
+    agora = datetime.datetime.now()
+    timestamp_str = agora.strftime("%Y-%m-%d %H:%M")
+    data_arquivo = agora.strftime("%Y%m%d_%H%M%S")
+
+    # Sanitiza título para nome de arquivo
+    titulo_sanitizado = re.sub(r'[\\/*?:"<>|]', "", titulo).strip()
+    if not titulo_sanitizado:
+        titulo_sanitizado = f"Nota_{data_arquivo}"
+
+    nome_arquivo = f"{titulo_sanitizado}.md"
+    caminho_completo = os.path.join(diretorio, nome_arquivo)
+
+    conteudo_md = f"""---
+title: "{titulo}"
+created: "{timestamp_str}"
+tags:
+  - jarvis
+  - nota_rapida
+---
+
+# {titulo}
+
+{conteudo}
+
+---
+*Nota registrada automaticamente pelo Jarvis Neural Assistant em {timestamp_str}*
+"""
+
+    try:
+        with open(caminho_completo, "w", encoding="utf-8") as f:
+            f.write(conteudo_md)
+        log.info(f"[PC_CONTROL] Nota salva no Obsidian: {caminho_completo}")
+        return f"Nota '{titulo}' gravada com sucesso no seu Vault do Obsidian, senhor."
+    except Exception as e:
+        log.error(f"[PC_CONTROL] Erro ao salvar nota Obsidian: {e}")
+        return f"Não foi possível salvar a nota no Obsidian devido a um erro de gravação: {str(e)}"
+
+
+# ──────────────────────────────────────────────────────────
+# 4. PROCESSADOR GERAL DE COMANDOS DE CONTROLE DO PC
+# ──────────────────────────────────────────────────────────
+
+async def processar_comando_pc(comando: str) -> str:
+    """
+    Roteador e executor de comandos de controle do PC e mordomo de sistema.
+    """
+    cmd = comando.lower().strip()
+    log.info(f"[PC_CONTROL] Processando comando: '{comando}'")
+
+    # 1. Volume específico (ex: "volume em 60%", "colocar volume em 80")
+    match_pct = re.search(r"volume\s*(?:em|para|no)?\s*(\d+)(?:\s*%)?", cmd)
+    if match_pct:
+        val = int(match_pct.group(1))
+        return definir_volume_sistema(val)
+
+    # 2. Aumentar volume
+    if any(k in cmd for k in ["aumentar volume", "aumenta o volume", "mais alto", "sobe o volume", "aumenta o som"]):
+        return ajustar_volume_sistema(+15)
+
+    # 3. Abaixar volume
+    if any(k in cmd for k in ["abaixar volume", "diminuir volume", "baixa o volume", "mais baixo", "abaixa o som"]):
+        return ajustar_volume_sistema(-15)
+
+    # 4. Mutar som do PC
+    if any(k in cmd for k in ["mutar som do pc", "mutar pc", "mutar som", "muta o pc", "silenciar o pc", "silenciar o som", "mudo no pc"]):
+        return mutar_som_pc(True)
+
+    # 5. Desmutar som do PC
+    if any(k in cmd for k in ["desmutar som do pc", "desmutar pc", "desmuta o som", "desmutar o som", "desmutar o pc", "tirar do mudo"]):
+        return mutar_som_pc(False)
+
+    # 6. Clipboard / Área de Transferência
+    if any(k in cmd for k in ["copiei", "texto copiado", "área de transferência", "area de transferencia", "clipboard", "o que está copiado"]):
+        return await processar_clipboard(comando)
+
+    # 7. Obsidian / Notas
+    if any(k in cmd for k in ["obsidian", "salve como nota", "salva como nota", "criar nota", "anote isso", "anota isso"]):
+        # Extrai o conteúdo a ser anotado
+        texto_nota = comando
+        for p in ["jarvis", "salve isso como nota no obsidian", "salva como nota no obsidian", "salve no obsidian", "salva no obsidian", "criar nota no obsidian", "anote no obsidian", "anota no obsidian", "obsidian", "anote isso", "anota isso", "por favor"]:
+            texto_nota = re.sub(rf"\b{p}\b", "", texto_nota, flags=re.IGNORECASE)
+        texto_nota = texto_nota.strip(' :,."\'')
+        
+        # Se após limpeza ficou vazio, anota o conteúdo da área de transferência!
+        if not texto_nota:
+            try:
+                clip = pyperclip.paste().strip()
+                if clip:
+                    return salvar_nota_obsidian("Nota da Área de Transferência", clip)
+            except Exception:
+                pass
+            return "Senhor, o que você gostaria que eu registrasse na nota do Obsidian?"
+
+        titulo_nota = texto_nota[:35] + ("..." if len(texto_nota) > 35 else "")
+        return salvar_nota_obsidian(titulo_nota, texto_nota)
+
+    return "Comando de controle de sistema processado, senhor."
+
+```
+
+
+==================================================
  ARQUIVO: .\MODULOS\skills\reminders_module.py
 ==================================================
 
@@ -10694,25 +13636,42 @@ def processar_comando_voz(texto: str) -> str:
     """
     t_lower = texto.lower()
 
-    # 1. Consulta / Listagem de lembretes
-    gatilhos_listar = ["quais são meus lembretes", "quais sao meus lembretes", "quais meus lembretes", "meus lembretes", "minha agenda", "listar lembretes", "compromissos de hoje", "o que tenho hoje", "lembretes de hoje"]
+    # 1. Consulta / Listagem unificada de agenda (Lembretes locais + Google Calendar)
+    gatilhos_listar = [
+        "quais são meus lembretes", "quais sao meus lembretes", "quais meus lembretes",
+        "meus lembretes", "minha agenda", "listar lembretes", "compromissos de hoje",
+        "o que tenho hoje", "lembretes de hoje", "dá uma olhada na minha agenda",
+        "da uma olhada na minha agenda", "olhada na minha agenda", "tenho algum compromisso",
+        "tenho compromisso", "compromissos", "agenda de hoje", "agenda"
+    ]
     if any(g in t_lower for g in gatilhos_listar):
         pendentes = listar_lembretes_pendentes()
-        if not pendentes:
-            return "Sua agenda está livre no momento, senhor. Não constam lembretes ou compromissos pendentes registrados."
-        
-        itens_fala = []
-        for idx, item in enumerate(pendentes, 1):
-            if item.get("horario"):
-                itens_fala.append(f"{item['texto']}, agendado para às {item['horario']}")
-            else:
-                itens_fala.append(f"{item['texto']}")
-        
-        total = len(pendentes)
-        if total == 1:
-            return f"O senhor possui 1 lembrete pendente na agenda: {itens_fala[0]}."
+
+        eventos_google = []
+        try:
+            from MODULOS.skills import google_mcp_module
+            eventos_google = google_mcp_module.listar_eventos_google_calendar(max_results=3)
+        except Exception as e_gc:
+            log.warning(f"[AGENDA] Falha ao consultar Google Calendar: {e_gc}")
+
+        partes_fala = []
+        if eventos_google:
+            desc_g = [f"'{e['titulo']}' às {e['horario']}" for e in eventos_google]
+            partes_fala.append("No seu Google Calendar constam: " + "; ".join(desc_g))
+
+        if pendentes:
+            desc_l = []
+            for item in pendentes:
+                if item.get("horario"):
+                    desc_l.append(f"'{item['texto']}' às {item['horario']}")
+                else:
+                    desc_l.append(f"'{item['texto']}'")
+            partes_fala.append("Nos lembretes locais constam: " + "; ".join(desc_l))
+
+        if partes_fala:
+            return "Senhor, verificando sua agenda: " + ". Além disso, ".join(partes_fala) + "."
         else:
-            return f"O senhor possui {total} lembretes pendentes: " + "; ".join(itens_fala) + "."
+            return "Sua agenda está livre no momento, senhor. Não constam compromissos no Google Calendar nem lembretes pendentes."
 
     # 2. Conclusão de lembrete
     if "concluir lembrete" in t_lower or "marcar lembrete" in t_lower or "finalizar lembrete" in t_lower:
@@ -10985,13 +13944,14 @@ try:
     import uvicorn
     from fastapi import FastAPI, WebSocket, WebSocketDisconnect
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import Response
+    from fastapi.responses import Response, FileResponse
     from fastapi.staticfiles import StaticFiles
     from pydantic import BaseModel
     import json
     import asyncio
     import os
     import sys
+    import urllib.parse
     import traceback
     import psutil
     
@@ -11330,6 +14290,101 @@ try:
         from MODULOS.skills import briefing_module
         return {"ativo": briefing_module.BRIEFING_EM_ANDAMENTO}
 
+    @app.get("/api/briefing/last")
+    async def get_briefing_last():
+        from MODULOS.skills import briefing_module
+        cards = briefing_module.obter_ultimo_briefing()
+        return {"cards": cards, "total": len(cards)}
+
+    # ── ROTAS DE DIAGNÓSTICO DE SISTEMAS // MARK VII ──
+    @app.post("/api/diagnostics/start")
+    async def start_diagnostics():
+        from MODULOS.skills import diagnostics_module
+        asyncio.create_task(diagnostics_module.executar_diagnostico_coreografado())
+        return {"status": "iniciado", "mensagem": "Diagnóstico de sistemas iniciado."}
+
+    @app.get("/api/diagnostics/status")
+    async def get_diagnostics_status():
+        from MODULOS.skills import diagnostics_module
+        return diagnostics_module.obter_ultimo_diagnostico()
+
+    # ── ROTAS DO MEDIA HUB / MINI-PLAYER HUD ──
+    @app.get("/api/music/status")
+    async def get_music_status():
+        from MODULOS.skills import music_module
+        return music_module.obter_status()
+
+    @app.post("/api/music/play_query")
+    async def play_music_query(data: dict):
+        from MODULOS.skills import music_module
+        query = data.get("query", "").strip()
+        fonte = data.get("fonte", "youtube").lower()
+        if fonte == "spotify":
+            track = await music_module.controlar_spotify(query)
+        elif fonte == "local":
+            track = await music_module.tocar_local(query)
+        else:
+            track = await music_module.tocar_youtube(query or "lofi beats")
+        return {"status": "ok", "track": track}
+
+    @app.post("/api/music/control")
+    async def control_music(data: dict):
+        from MODULOS.skills import music_module
+        action = data.get("action", "").lower()
+        value = data.get("value")
+        if action == "toggle":
+            status = music_module.obter_status()
+            if status.get("tocando"):
+                res = await music_module.pausar()
+            else:
+                res = await music_module.continuar()
+        elif action == "pause":
+            res = await music_module.pausar()
+        elif action == "play":
+            res = await music_module.continuar()
+        elif action == "next":
+            res = await music_module.proxima()
+        elif action == "prev":
+            res = await music_module.anterior()
+        elif action == "volume":
+            res = await music_module.definir_volume(int(value if value is not None else 80))
+        else:
+            res = music_module.obter_status()
+        return {"status": "ok", "track": res}
+
+    @app.get("/api/music/stream")
+    async def stream_music_file(path: str):
+        real_path = urllib.parse.unquote(path)
+        if not os.path.exists(real_path) or not os.path.isfile(real_path):
+            return Response(status_code=404, content="Arquivo de áudio não encontrado.")
+        ext = os.path.splitext(real_path)[1].lower()
+        # Se for .opus e o ffmpeg estiver disponível no sistema, converte em cache para 100% de compatibilidade
+        import shutil
+        import subprocess
+        ffmpeg_exe = shutil.which("ffmpeg")
+        if ext == ".opus" and ffmpeg_exe:
+            try:
+                os.makedirs("TEMP_AUDIO", exist_ok=True)
+                cache_mp3 = os.path.join("TEMP_AUDIO", "converted_current.mp3")
+                if not os.path.exists(cache_mp3) or os.path.getmtime(real_path) > os.path.getmtime(cache_mp3):
+                    cmd = [ffmpeg_exe, "-y", "-i", real_path, "-b:a", "192k", cache_mp3]
+                    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+                if os.path.exists(cache_mp3):
+                    return FileResponse(cache_mp3, media_type="audio/mpeg")
+            except Exception as e_conv:
+                print(f"[STREAM] Conversão ffmpeg falhou ({e_conv}). Servindo stream direto.")
+
+        media_types = {
+            ".mp3": "audio/mpeg",
+            ".wav": "audio/wav",
+            ".ogg": "audio/ogg",
+            ".flac": "audio/flac",
+            ".m4a": "audio/mp4",
+            ".opus": "audio/ogg; codecs=opus",
+            ".webm": "audio/webm"
+        }
+        return FileResponse(real_path, media_type=media_types.get(ext, "audio/mpeg"))
+
     @app.post("/api/comando_manual")
     async def comando_manual(data: dict):
         texto = data.get("texto", "").strip()
@@ -11341,6 +14396,76 @@ try:
             print(f"[INTERFACE] Comando manual recebido: '{texto}'")
             return {"status": "ok", "texto": texto}
         return {"status": "vazio"}
+
+    @app.post("/api/jarvis/stop_action")
+    async def parar_acao_jarvis():
+        """Interrompe fala, desfile de briefing e ações em execução imediatamente."""
+        try:
+            flag_path = os.path.join(ROOT_DIR, "DADOS", "stop_action.flag")
+            os.makedirs(os.path.join(ROOT_DIR, "DADOS"), exist_ok=True)
+            with open(flag_path, "w", encoding="utf-8") as f:
+                f.write("STOP")
+        except Exception:
+            pass
+
+        try:
+            from MODULOS.voice import voice_manager
+            voice_manager.interromper_fala_imediata()
+        except Exception as e_vm:
+            print(f"[INTERFACE] Erro chamando interromper_fala_imediata: {e_vm}")
+
+        try:
+            from MODULOS.system.comunicacao_visual import atualizar_jarvis
+            await atualizar_jarvis(cor_hex="#00ffff", intensidade=0.1, texto="", padrao="conversa")
+        except Exception:
+            pass
+
+        print("[INTERFACE] ⏹️ Ação/fala interrompida via requisição da HUD.")
+        return {"status": "ok", "mensagem": "Fala e ações interrompidas com sucesso."}
+
+    # ──────────────────────────────────────────────────────────
+    # GOOGLE WORKSPACE API (CALENDAR & DRIVE)
+    # ──────────────────────────────────────────────────────────
+    @app.get("/api/google/status")
+    async def google_status():
+        from MODULOS.skills import google_mcp_module
+        return google_mcp_module.obter_status_google_auth()
+
+    @app.post("/api/google/auth")
+    async def google_auth():
+        from MODULOS.skills import google_mcp_module
+        loop = asyncio.get_running_loop()
+        res = await loop.run_in_executor(None, google_mcp_module.iniciar_fluxo_autenticacao_google)
+        return res
+
+    @app.get("/api/google/calendar")
+    async def google_calendar_events(max_results: int = 5):
+        from MODULOS.skills import google_mcp_module
+        loop = asyncio.get_running_loop()
+        eventos = await loop.run_in_executor(None, lambda: google_mcp_module.listar_eventos_google_calendar(max_results))
+        return {"eventos": eventos}
+
+    @app.get("/api/google/drive")
+    async def google_drive_files(q: str = ""):
+        from MODULOS.skills import google_mcp_module
+        loop = asyncio.get_running_loop()
+        arquivos = await loop.run_in_executor(None, lambda: google_mcp_module.buscar_arquivos_google_drive(q, max_results=5))
+        return {"arquivos": arquivos}
+
+    # ──────────────────────────────────────────────────────────
+    # CONTROLE DO PC (VOLUME MASTER)
+    # ──────────────────────────────────────────────────────────
+    @app.get("/api/pc/volume")
+    async def pc_volume_get():
+        from MODULOS.skills import pc_control_module
+        return {"volume": pc_control_module.obter_volume_sistema()}
+
+    @app.post("/api/pc/volume")
+    async def pc_volume_set(data: dict):
+        from MODULOS.skills import pc_control_module
+        vol = data.get("volume", 50)
+        msg = pc_control_module.definir_volume_sistema(int(vol))
+        return {"status": "ok", "mensagem": msg}
 
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():
@@ -12083,6 +15208,7 @@ import random
 import pyttsx3
 from MODULOS.system.comunicacao_visual import atualizar_jarvis
 STATUS_FALANDO = False
+ABORTAR_FALA = False
 fila_fala = asyncio.PriorityQueue()
 
 # Defer pygame init to avoid hanging on boot
@@ -12097,9 +15223,38 @@ def init_pygame_safe():
         except Exception as e:
             print(f"[VOZ] Erro ao inicializar mixer (hardware de som): {e}")
 
+def interromper_fala_imediata():
+    """
+    Corta a fala do Jarvis no mesmo milissegundo:
+    1. Define ABORTAR_FALA = True e STATUS_FALANDO = False.
+    2. Esvazia toda a fila de reprodução e fala pendente.
+    3. Para e descarrega o mixer de áudio do pygame imediatamente.
+    """
+    global ABORTAR_FALA, STATUS_FALANDO
+    ABORTAR_FALA = True
+    STATUS_FALANDO = False
+
+    # Esvazia fila de fala imediatamente
+    while not fila_fala.empty():
+        try:
+            fila_fala.get_nowait()
+            fila_fala.task_done()
+        except Exception:
+            break
+
+    if pygame is not None:
+        try:
+            pygame.mixer.music.stop()
+            pygame.mixer.music.unload()
+        except Exception:
+            pass
+
+    print("[VOZ] [PARAR] Fala do Jarvis interrompida imediatamente.")
+
 async def falar(bot_nome, texto, prioridade=1):
     if not texto: return
-    global STATUS_FALANDO
+    global STATUS_FALANDO, ABORTAR_FALA
+    ABORTAR_FALA = False  # Reset da flag ao iniciar nova fala solicitada
     STATUS_FALANDO = True
     await fila_fala.put((prioridade, bot_nome, texto))
 
@@ -12336,8 +15491,17 @@ async def processador_de_fala():
             # Produtor em background: sintetiza continuamente todos os chunks sem travar a reprodução
             async def produtor_audio():
                 for idx, chunk_text in enumerate(chunks):
+                    if ABORTAR_FALA:
+                        break
                     try:
                         arq = await _sintetizar_chunk_audio(chunk_text, VOICE)
+                        if ABORTAR_FALA:
+                            if arq and os.path.exists(arq):
+                                try:
+                                    os.remove(arq)
+                                except Exception:
+                                    pass
+                            break
                         if arq and os.path.exists(arq):
                             arquivos_para_limpar.append(arq)
                             await fila_reproducao.put((idx, chunk_text, arq))
@@ -12353,25 +15517,37 @@ async def processador_de_fala():
             primeiro_tocado = False
 
             while True:
+                if ABORTAR_FALA:
+                    break
+
                 item = await fila_reproducao.get()
-                if item is None:
-                    # Todos os chunks foram reproduzidos
+                if item is None or ABORTAR_FALA:
                     break
 
                 idx, chunk_text, arquivo_audio = item
 
-                if not primeiro_tocado:
+                if not primeiro_tocado and not ABORTAR_FALA:
                     # Restaura a legenda com o texto formatado original assim que o áudio começa
                     await atualizar_jarvis(cor_hex="#00e5ff", intensidade=0.8, texto=texto, padrao="falando")
                     primeiro_tocado = True
 
                 if arquivo_audio and os.path.exists(arquivo_audio) and pygame is not None:
                     try:
+                        if ABORTAR_FALA:
+                            break
                         pygame.mixer.music.load(arquivo_audio)
                         pygame.mixer.music.play()
 
-                        # Delay ultrabaixo de 20ms para checagem rápida de fim de reprodução (gapless)
+                        # Delay ultrabaixo de 20ms para checagem rápida de fim de reprodução ou aborto imediato
                         while pygame.mixer.music.get_busy():
+                            if ABORTAR_FALA or os.path.exists("DADOS/stop_action.flag"):
+                                if os.path.exists("DADOS/stop_action.flag"):
+                                    try:
+                                        os.remove("DADOS/stop_action.flag")
+                                    except Exception:
+                                        pass
+                                interromper_fala_imediata()
+                                break
                             agita = random.uniform(0.4, 0.9)
                             await atualizar_jarvis(intensidade=agita, texto=texto)
                             await asyncio.sleep(0.02)
@@ -12388,13 +15564,16 @@ async def processador_de_fala():
                             except Exception:
                                 pass
                 else:
-                    await atualizar_jarvis(intensidade=0.1, texto=texto)
-                    await asyncio.sleep(len(chunk_text) * 0.04)
+                    if not ABORTAR_FALA:
+                        await atualizar_jarvis(intensidade=0.1, texto=texto)
+                        await asyncio.sleep(len(chunk_text) * 0.04)
 
-            # Aguarda a tarefa produtora concluir
+            # Cancela e aguarda a tarefa produtora concluir
+            if not produtor_task.done():
+                produtor_task.cancel()
             try:
                 await produtor_task
-            except Exception:
+            except (asyncio.CancelledError, Exception):
                 pass
 
             # Limpeza final de arquivos residuais caso algum tenha sobrado

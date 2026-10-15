@@ -1,4 +1,66 @@
-# Python
+# ═══════════════════════════════════════════════════════════════
+#  GITIGNORE JARVIS - SEGURANÇA, PRIVACIDADE & CREDENCIAIS
+# ═══════════════════════════════════════════════════════════════
+
+# ── 1. CREDENCIAIS, TOKENS & CHAVES DE API (CRÍTICO!) ─────────
+DADOS/google_credentials.json
+DADOS/google_token.json
+*credentials*.json
+*token*.json
+*.pem
+*.key
+*.p12
+.env
+*.env
+.env.*
+!DADOS/*.example
+!*.example
+
+# ── 2. DADOS PESSOAIS, LEMBRETES & TELEMETRIA DO USUÁRIO ──────
+DADOS/lembretes.json
+DADOS/ultimo_briefing.json
+DADOS/apps_cache.json
+DADOS/config_paths.json
+DADOS/model_registry.json
+DADOS/jarvis_identity.json
+DADOS/comando_manual.txt
+DADOS/*.flag
+DADOS/*.log
+*.flag
+*.log
+
+# ── 3. BANCOS VETORIAIS & MEMÓRIA SEMÂNTICA (CHROMADB) ────────
+DADOS/chroma_*/
+chroma_fatos/
+chroma_historico/
+*.sqlite3
+*.db
+
+# ── 4. MÍDIAS, GRAVAÇÕES PESSOAIS & ARQUIVOS DE ÁUDIO ─────────
+MUSICAS_LOCAIS/*
+!MUSICAS_LOCAIS/.gitkeep
+TEMP_AUDIO/*
+!TEMP_AUDIO/.gitkeep
+TESTE_FALA/*
+!TESTE_FALA/.gitkeep
+*.wav
+*.mp3
+*.opus
+*.flac
+*.ogg
+*.m4a
+*.webm
+
+# ── 5. BINÁRIOS PESADOS, ARCHIVES & COMPACTADOS ───────────────
+*.zip
+*.rar
+*.7z
+*.tar.gz
+monitor/*.zip
+MEU modelo de ia.rar
+runtimes/
+
+# ── 6. PYTHON, VIRTUAL ENVS & COMPILADOS ──────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -7,30 +69,24 @@ __pycache__/
 env/
 venv/
 .venv/
+build/
+dist/
+*.egg-info/
 
-# Áudio temporário e gravações
-TEMP_AUDIO/
-!TEMP_AUDIO/.gitkeep
-*.wav
-
-# Bancos de dados e memória vetorial
-DADOS/chroma_*/
-chroma_fatos/
-chroma_historico/
-DADOS/config_paths.json
-DADOS/model_registry.json
-DADOS/*.log
-*.log
-DADOS/*.flag
-DADOS/comando_manual.txt
-!DADOS/mcp_servers.json
-!DADOS/.gitkeep
-apps_cache.json
-
-# Binários pesados e monitores
-monitor/*.zip
-MEU modelo de ia.rar
-
-# HuggingFace Shards e Caches Locais
+# ── 7. IDES, VAULTS & CACHES LOCAIS ───────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+OBSIDIAN_VAULT/
 .cache/
 jarvis_shards_*/
+
+# ── 8. ARQUIVOS PERMITIDOS / RASTREADOS EM DADOS/ ──────────────
+!DADOS/.gitkeep
+!DADOS/mcp_servers.json
+!DADOS/news_config.json
+!DADOS/voice_config.json
+!DADOS/google_credentials.json.example
+!DADOS/lembretes.json.example

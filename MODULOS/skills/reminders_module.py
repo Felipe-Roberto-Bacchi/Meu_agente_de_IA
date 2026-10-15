@@ -129,25 +129,42 @@ def processar_comando_voz(texto: str) -> str:
     """
     t_lower = texto.lower()
 
-    # 1. Consulta / Listagem de lembretes
-    gatilhos_listar = ["quais são meus lembretes", "quais sao meus lembretes", "quais meus lembretes", "meus lembretes", "minha agenda", "listar lembretes", "compromissos de hoje", "o que tenho hoje", "lembretes de hoje"]
+    # 1. Consulta / Listagem unificada de agenda (Lembretes locais + Google Calendar)
+    gatilhos_listar = [
+        "quais são meus lembretes", "quais sao meus lembretes", "quais meus lembretes",
+        "meus lembretes", "minha agenda", "listar lembretes", "compromissos de hoje",
+        "o que tenho hoje", "lembretes de hoje", "dá uma olhada na minha agenda",
+        "da uma olhada na minha agenda", "olhada na minha agenda", "tenho algum compromisso",
+        "tenho compromisso", "compromissos", "agenda de hoje", "agenda"
+    ]
     if any(g in t_lower for g in gatilhos_listar):
         pendentes = listar_lembretes_pendentes()
-        if not pendentes:
-            return "Sua agenda está livre no momento, senhor. Não constam lembretes ou compromissos pendentes registrados."
-        
-        itens_fala = []
-        for idx, item in enumerate(pendentes, 1):
-            if item.get("horario"):
-                itens_fala.append(f"{item['texto']}, agendado para às {item['horario']}")
-            else:
-                itens_fala.append(f"{item['texto']}")
-        
-        total = len(pendentes)
-        if total == 1:
-            return f"O senhor possui 1 lembrete pendente na agenda: {itens_fala[0]}."
+
+        eventos_google = []
+        try:
+            from MODULOS.skills import google_mcp_module
+            eventos_google = google_mcp_module.listar_eventos_google_calendar(max_results=3)
+        except Exception as e_gc:
+            log.warning(f"[AGENDA] Falha ao consultar Google Calendar: {e_gc}")
+
+        partes_fala = []
+        if eventos_google:
+            desc_g = [f"'{e['titulo']}' às {e['horario']}" for e in eventos_google]
+            partes_fala.append("No seu Google Calendar constam: " + "; ".join(desc_g))
+
+        if pendentes:
+            desc_l = []
+            for item in pendentes:
+                if item.get("horario"):
+                    desc_l.append(f"'{item['texto']}' às {item['horario']}")
+                else:
+                    desc_l.append(f"'{item['texto']}'")
+            partes_fala.append("Nos lembretes locais constam: " + "; ".join(desc_l))
+
+        if partes_fala:
+            return "Senhor, verificando sua agenda: " + ". Além disso, ".join(partes_fala) + "."
         else:
-            return f"O senhor possui {total} lembretes pendentes: " + "; ".join(itens_fala) + "."
+            return "Sua agenda está livre no momento, senhor. Não constam compromissos no Google Calendar nem lembretes pendentes."
 
     # 2. Conclusão de lembrete
     if "concluir lembrete" in t_lower or "marcar lembrete" in t_lower or "finalizar lembrete" in t_lower:

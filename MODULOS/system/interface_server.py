@@ -2,13 +2,14 @@ try:
     import uvicorn
     from fastapi import FastAPI, WebSocket, WebSocketDisconnect
     from fastapi.middleware.cors import CORSMiddleware
-    from fastapi.responses import Response
+    from fastapi.responses import Response, FileResponse
     from fastapi.staticfiles import StaticFiles
     from pydantic import BaseModel
     import json
     import asyncio
     import os
     import sys
+    import urllib.parse
     import traceback
     import psutil
     
@@ -347,6 +348,101 @@ try:
         from MODULOS.skills import briefing_module
         return {"ativo": briefing_module.BRIEFING_EM_ANDAMENTO}
 
+    @app.get("/api/briefing/last")
+    async def get_briefing_last():
+        from MODULOS.skills import briefing_module
+        cards = briefing_module.obter_ultimo_briefing()
+        return {"cards": cards, "total": len(cards)}
+
+    # ── ROTAS DE DIAGNÓSTICO DE SISTEMAS // MARK VII ──
+    @app.post("/api/diagnostics/start")
+    async def start_diagnostics():
+        from MODULOS.skills import diagnostics_module
+        asyncio.create_task(diagnostics_module.executar_diagnostico_coreografado())
+        return {"status": "iniciado", "mensagem": "Diagnóstico de sistemas iniciado."}
+
+    @app.get("/api/diagnostics/status")
+    async def get_diagnostics_status():
+        from MODULOS.skills import diagnostics_module
+        return diagnostics_module.obter_ultimo_diagnostico()
+
+    # ── ROTAS DO MEDIA HUB / MINI-PLAYER HUD ──
+    @app.get("/api/music/status")
+    async def get_music_status():
+        from MODULOS.skills import music_module
+        return music_module.obter_status()
+
+    @app.post("/api/music/play_query")
+    async def play_music_query(data: dict):
+        from MODULOS.skills import music_module
+        query = data.get("query", "").strip()
+        fonte = data.get("fonte", "youtube").lower()
+        if fonte == "spotify":
+            track = await music_module.controlar_spotify(query)
+        elif fonte == "local":
+            track = await music_module.tocar_local(query)
+        else:
+            track = await music_module.tocar_youtube(query or "lofi beats")
+        return {"status": "ok", "track": track}
+
+    @app.post("/api/music/control")
+    async def control_music(data: dict):
+        from MODULOS.skills import music_module
+        action = data.get("action", "").lower()
+        value = data.get("value")
+        if action == "toggle":
+            status = music_module.obter_status()
+            if status.get("tocando"):
+                res = await music_module.pausar()
+            else:
+                res = await music_module.continuar()
+        elif action == "pause":
+            res = await music_module.pausar()
+        elif action == "play":
+            res = await music_module.continuar()
+        elif action == "next":
+            res = await music_module.proxima()
+        elif action == "prev":
+            res = await music_module.anterior()
+        elif action == "volume":
+            res = await music_module.definir_volume(int(value if value is not None else 80))
+        else:
+            res = music_module.obter_status()
+        return {"status": "ok", "track": res}
+
+    @app.get("/api/music/stream")
+    async def stream_music_file(path: str):
+        real_path = urllib.parse.unquote(path)
+        if not os.path.exists(real_path) or not os.path.isfile(real_path):
+            return Response(status_code=404, content="Arquivo de áudio não encontrado.")
+        ext = os.path.splitext(real_path)[1].lower()
+        # Se for .opus e o ffmpeg estiver disponível no sistema, converte em cache para 100% de compatibilidade
+        import shutil
+        import subprocess
+        ffmpeg_exe = shutil.which("ffmpeg")
+        if ext == ".opus" and ffmpeg_exe:
+            try:
+                os.makedirs("TEMP_AUDIO", exist_ok=True)
+                cache_mp3 = os.path.join("TEMP_AUDIO", "converted_current.mp3")
+                if not os.path.exists(cache_mp3) or os.path.getmtime(real_path) > os.path.getmtime(cache_mp3):
+                    cmd = [ffmpeg_exe, "-y", "-i", real_path, "-b:a", "192k", cache_mp3]
+                    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+                if os.path.exists(cache_mp3):
+                    return FileResponse(cache_mp3, media_type="audio/mpeg")
+            except Exception as e_conv:
+                print(f"[STREAM] Conversão ffmpeg falhou ({e_conv}). Servindo stream direto.")
+
+        media_types = {
+            ".mp3": "audio/mpeg",
+            ".wav": "audio/wav",
+            ".ogg": "audio/ogg",
+            ".flac": "audio/flac",
+            ".m4a": "audio/mp4",
+            ".opus": "audio/ogg; codecs=opus",
+            ".webm": "audio/webm"
+        }
+        return FileResponse(real_path, media_type=media_types.get(ext, "audio/mpeg"))
+
     @app.post("/api/comando_manual")
     async def comando_manual(data: dict):
         texto = data.get("texto", "").strip()
@@ -358,6 +454,76 @@ try:
             print(f"[INTERFACE] Comando manual recebido: '{texto}'")
             return {"status": "ok", "texto": texto}
         return {"status": "vazio"}
+
+    @app.post("/api/jarvis/stop_action")
+    async def parar_acao_jarvis():
+        """Interrompe fala, desfile de briefing e ações em execução imediatamente."""
+        try:
+            flag_path = os.path.join(ROOT_DIR, "DADOS", "stop_action.flag")
+            os.makedirs(os.path.join(ROOT_DIR, "DADOS"), exist_ok=True)
+            with open(flag_path, "w", encoding="utf-8") as f:
+                f.write("STOP")
+        except Exception:
+            pass
+
+        try:
+            from MODULOS.voice import voice_manager
+            voice_manager.interromper_fala_imediata()
+        except Exception as e_vm:
+            print(f"[INTERFACE] Erro chamando interromper_fala_imediata: {e_vm}")
+
+        try:
+            from MODULOS.system.comunicacao_visual import atualizar_jarvis
+            await atualizar_jarvis(cor_hex="#00ffff", intensidade=0.1, texto="", padrao="conversa")
+        except Exception:
+            pass
+
+        print("[INTERFACE] ⏹️ Ação/fala interrompida via requisição da HUD.")
+        return {"status": "ok", "mensagem": "Fala e ações interrompidas com sucesso."}
+
+    # ──────────────────────────────────────────────────────────
+    # GOOGLE WORKSPACE API (CALENDAR & DRIVE)
+    # ──────────────────────────────────────────────────────────
+    @app.get("/api/google/status")
+    async def google_status():
+        from MODULOS.skills import google_mcp_module
+        return google_mcp_module.obter_status_google_auth()
+
+    @app.post("/api/google/auth")
+    async def google_auth():
+        from MODULOS.skills import google_mcp_module
+        loop = asyncio.get_running_loop()
+        res = await loop.run_in_executor(None, google_mcp_module.iniciar_fluxo_autenticacao_google)
+        return res
+
+    @app.get("/api/google/calendar")
+    async def google_calendar_events(max_results: int = 5):
+        from MODULOS.skills import google_mcp_module
+        loop = asyncio.get_running_loop()
+        eventos = await loop.run_in_executor(None, lambda: google_mcp_module.listar_eventos_google_calendar(max_results))
+        return {"eventos": eventos}
+
+    @app.get("/api/google/drive")
+    async def google_drive_files(q: str = ""):
+        from MODULOS.skills import google_mcp_module
+        loop = asyncio.get_running_loop()
+        arquivos = await loop.run_in_executor(None, lambda: google_mcp_module.buscar_arquivos_google_drive(q, max_results=5))
+        return {"arquivos": arquivos}
+
+    # ──────────────────────────────────────────────────────────
+    # CONTROLE DO PC (VOLUME MASTER)
+    # ──────────────────────────────────────────────────────────
+    @app.get("/api/pc/volume")
+    async def pc_volume_get():
+        from MODULOS.skills import pc_control_module
+        return {"volume": pc_control_module.obter_volume_sistema()}
+
+    @app.post("/api/pc/volume")
+    async def pc_volume_set(data: dict):
+        from MODULOS.skills import pc_control_module
+        vol = data.get("volume", 50)
+        msg = pc_control_module.definir_volume_sistema(int(vol))
+        return {"status": "ok", "mensagem": msg}
 
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():

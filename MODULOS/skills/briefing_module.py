@@ -24,6 +24,33 @@ from MODULOS.skills import reminders_module
 BRIEFING_EM_ANDAMENTO = False
 ULTIMO_BRIEFING_CARDS: list[dict] = []
 
+# Carrega cache do último briefing se existir
+try:
+    if os.path.exists("DADOS/ultimo_briefing.json"):
+        with open("DADOS/ultimo_briefing.json", "r", encoding="utf-8") as _f_init:
+            _cards_init = json.load(_f_init)
+            if isinstance(_cards_init, list):
+                ULTIMO_BRIEFING_CARDS = _cards_init
+except Exception:
+    pass
+
+def obter_ultimo_briefing() -> list[dict]:
+    """Retorna os cards do último briefing executado, carregando do cache se necessário."""
+    global ULTIMO_BRIEFING_CARDS
+    if ULTIMO_BRIEFING_CARDS:
+        return ULTIMO_BRIEFING_CARDS
+    caminho = "DADOS/ultimo_briefing.json"
+    if os.path.exists(caminho):
+        try:
+            with open(caminho, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+                if isinstance(dados, list):
+                    ULTIMO_BRIEFING_CARDS = dados
+                    return ULTIMO_BRIEFING_CARDS
+        except Exception as e:
+            log.warning(f"[BRIEFING] Erro ao carregar DADOS/ultimo_briefing.json: {e}")
+    return []
+
 IMAGENS_FALLBACK = {
     "mundo": "https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?w=800&q=80",
     "economia": "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&q=80",
@@ -114,12 +141,31 @@ async def obter_card_clima(cidade: str = None) -> dict:
 async def obter_card_agenda() -> dict:
     pendentes = reminders_module.listar_lembretes_pendentes()
     itens = []
+
+    # 1. Integração com eventos da agenda do Google Workspace
+    try:
+        from MODULOS.skills import google_mcp_module
+        eventos_gcal = google_mcp_module.listar_eventos_google_calendar(max_results=4)
+        for ev in eventos_gcal:
+            itens.append({
+                "id": f"gcal_{ev.get('id')}",
+                "texto": f"📅 {ev.get('titulo')}",
+                "horario": ev.get("horario") or "--:--",
+                "origem": "google_calendar"
+            })
+    except Exception as e:
+        log.warning(f"[BRIEFING] Erro ao integrar Google Calendar na agenda: {e}")
+
+    # 2. Lembretes e tarefas locais
     for p in pendentes[:4]:
         itens.append({
             "id": p.get("id"),
             "texto": p.get("texto"),
-            "horario": p.get("horario") or "--:--"
+            "horario": p.get("horario") or "--:--",
+            "origem": "local"
         })
+
+    itens = itens[:5]
 
     if itens:
         descricoes = []
@@ -131,9 +177,9 @@ async def obter_card_agenda() -> dict:
         
         qtd = len(itens)
         if qtd == 1:
-            fala = f"Na sua agenda de hoje, o senhor possui 1 compromisso pendente registrado: {descricoes[0]}."
+            fala = f"Na sua agenda de hoje, o senhor possui 1 compromisso registrado: {descricoes[0]}."
         else:
-            fala = f"Na sua agenda de hoje, o senhor possui {qtd} compromissos pendentes: " + "; ".join(descricoes) + "."
+            fala = f"Na sua agenda de hoje, o senhor possui {qtd} compromissos registrados: " + "; ".join(descricoes) + "."
     else:
         fala = "Sua agenda está livre no momento, senhor. Não constam lembretes ou compromissos pendentes registrados para hoje."
 
@@ -582,6 +628,14 @@ async def executar_briefing_coreografado():
         global ULTIMO_BRIEFING_CARDS
         ULTIMO_BRIEFING_CARDS = list(cards_briefing)
 
+        os.makedirs("DADOS", exist_ok=True)
+        try:
+            with open("DADOS/ultimo_briefing.json", "w", encoding="utf-8") as _f_save:
+                json.dump(ULTIMO_BRIEFING_CARDS, _f_save, ensure_ascii=False, indent=2)
+            log.info("[BRIEFING] Cards salvos com sucesso em DADOS/ultimo_briefing.json")
+        except Exception as _e_save:
+            log.warning(f"[BRIEFING] Erro ao salvar DADOS/ultimo_briefing.json: {_e_save}")
+
         # Monta resumo textual estruturado de todos os 7 cards e salva IMEDIATAMENTE na memória
         data_hora_str = datetime.now().strftime("%d/%m/%Y às %H:%M")
         linhas_resumo = [
@@ -629,7 +683,13 @@ async def executar_briefing_coreografado():
         await asyncio.sleep(0.5)
 
         # ── FASE 2: DESFILE DE CARDS EM FOCO CENTRAL ──
+        briefing_abortado = False
         for idx, card in enumerate(cards_briefing):
+            if getattr(voice_manager, "ABORTAR_FALA", False):
+                log.info("[BRIEFING] Briefing interrompido pelo usuário via ABORTAR_FALA.")
+                briefing_abortado = True
+                break
+
             log.info(f"[BRIEFING] Exibindo card {idx + 1}/{len(cards_briefing)}: {card.get('titulo')}")
 
             # 1. Envia evento para a interface focar esse card no centro da esfera
@@ -648,7 +708,14 @@ async def executar_briefing_coreografado():
 
                 await asyncio.sleep(0.3)
                 while voice_manager.STATUS_FALANDO:
+                    if getattr(voice_manager, "ABORTAR_FALA", False):
+                        briefing_abortado = True
+                        break
                     await asyncio.sleep(0.1)
+
+            if briefing_abortado or getattr(voice_manager, "ABORTAR_FALA", False):
+                briefing_abortado = True
+                break
 
             # Pausa de transição suave para apreciação visual do card antes do próximo
             await asyncio.sleep(0.6)
@@ -659,15 +726,18 @@ async def executar_briefing_coreografado():
             "total_cards": len(cards_briefing)
         })
 
-        fala_fim = "Esse é o panorama consolidado do momento, senhor. Hoje, mantenha o foco no essencial."
-        await atualizar_jarvis(cor_hex="#00ffff", intensidade=0.6, texto=fala_fim, padrao="conversa")
-        await voice_manager.falar("Jarvis", fala_fim, prioridade=1)
+        if not briefing_abortado and not getattr(voice_manager, "ABORTAR_FALA", False):
+            fala_fim = "Esse é o panorama consolidado do momento, senhor. Hoje, mantenha o foco no essencial."
+            await atualizar_jarvis(cor_hex="#00ffff", intensidade=0.6, texto=fala_fim, padrao="conversa")
+            await voice_manager.falar("Jarvis", fala_fim, prioridade=1)
 
-        await asyncio.sleep(0.3)
-        while voice_manager.STATUS_FALANDO:
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(0.3)
+            while voice_manager.STATUS_FALANDO:
+                if getattr(voice_manager, "ABORTAR_FALA", False):
+                    break
+                await asyncio.sleep(0.1)
 
-        log.info("[BRIEFING] Briefing Matinal concluído com sucesso.")
+        log.info("[BRIEFING] Briefing Matinal concluído/encerrado com sucesso.")
 
     except Exception as e:
         log.error(f"[BRIEFING] Erro durante o briefing coreografado: {e}")

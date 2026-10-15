@@ -103,33 +103,42 @@ def perguntar_ao_llama_sobre_programa(alvo, lista_programas):
 
 def executar_comando(alvo):
     global PROGRAMAS_INSTALADOS
-    if not alvo or len(alvo) < 2: return None
+    if not alvo or len(alvo.strip()) < 2:
+        return "Senhor, o áudio cortou levemente e não identifiquei qual aplicativo deseja abrir. Poderia repetir?"
     
     nomes = list(PROGRAMAS_INSTALADOS.keys())
     
     if "não existe" in alvo.lower() or "não encontrado" in alvo.lower():
         return "Não consegui identificar o programa, senhor."
 
-    match = process.extractOne(alvo, nomes, score_cutoff=90) if process else None
+    nome_final = None
+    alvo_clean = alvo.strip().lower()
+    
+    # 1. Match exato ou token direto
+    for n in nomes:
+        n_low = n.lower()
+        if alvo_clean == n_low or alvo_clean in n_low.split():
+            nome_final = n
+            break
 
-    if match:
-        nome_final = match[0]
-        print(f"[ACTIONS] Match direto encontrado: {nome_final}")
-    else:
-        nome_final = next((n for n in nomes if alvo.lower() in n.lower()), None)
-        if not nome_final:
-            print(f"[ACTIONS] '{alvo}' não é óbvio. Consultando Llama...")
-            nome_final = perguntar_ao_llama_sobre_programa(alvo, nomes)
+    # 2. Match fuzzy de alta confiança (score >= 85)
+    if not nome_final and process:
+        match = process.extractOne(alvo, nomes, score_cutoff=85)
+        if match:
+            nome_final = match[0]
+            print(f"[ACTIONS] Match seguro encontrado: {nome_final} (score: {match[1]})")
 
-    if nome_final and nome_final in PROGRAMAS_INSTALADOS:
-        caminho = PROGRAMAS_INSTALADOS[nome_final]
-        try:
-            subprocess.Popen([caminho], shell=True, creationflags=subprocess.DETACHED_PROCESS)
-            return f"Iniciando {nome_final}, senhor."
-        except Exception as e:
-            return f"Erro técnico ao abrir {nome_final}: {e}"
+    # NÃO chamar Llama para chutar aplicativos aleatórios quando não há certeza
+    if not nome_final or nome_final not in PROGRAMAS_INSTALADOS:
+        print(f"[ACTIONS] '{alvo}' não teve match seguro (score < 85). Solicitando confirmação.")
+        return "Senhor, o áudio cortou levemente e não identifiquei qual aplicativo deseja abrir. Poderia repetir?"
 
-    return f"Não localizei o '{alvo}' no sistema."
+    caminho = PROGRAMAS_INSTALADOS[nome_final]
+    try:
+        subprocess.Popen([caminho], shell=True, creationflags=subprocess.DETACHED_PROCESS)
+        return f"Iniciando {nome_final}, senhor."
+    except Exception as e:
+        return f"Erro técnico ao abrir {nome_final}: {e}"
 
 # --- 2. INICIALIZAÇÃO DO MÓDULO (Sempre depois das funções) ---
 

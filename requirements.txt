@@ -47,4 +47,13 @@ yfinance>=0.2.50
 watchdog>=6.0.0
 pywin32>=306; sys_platform == 'win32'
 
+# Multimidia, Musica e Streaming
+yt-dlp>=2024.8.0
+spotipy>=2.24.0
+pycaw>=2024.0
+pyperclip>=1.8.0
+
+# Google Workspace MCP & Automação
+google-api-python-client>=2.100.0
+google-auth-oauthlib>=1.2.0
 

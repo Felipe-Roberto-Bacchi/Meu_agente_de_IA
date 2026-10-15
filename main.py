@@ -51,6 +51,16 @@ async def loop_principal():
     estado_anterior = None
     
     while True:
+        # -1. Verifica se houve interrupção imediata de fala/ação solicitada pela HUD
+        flag_stop = "DADOS/stop_action.flag"
+        if os.path.exists(flag_stop):
+            try:
+                os.remove(flag_stop)
+            except Exception:
+                pass
+            voice_manager.interromper_fala_imediata()
+            await atualizar_jarvis(cor_hex="#00ffff", intensidade=0.1, texto="", padrao="conversa")
+
         # 0. Verifica se chegou solicitação de teste de voz pela interface
         flag_teste_voz = "DADOS/teste_voz.flag"
         if os.path.exists(flag_teste_voz):
@@ -141,7 +151,14 @@ async def loop_principal():
             # Aguarda a fala iniciar e concluir para não gravar eco ou cliques
             await asyncio.sleep(0.15)
             while voice_manager.STATUS_FALANDO:
-                await asyncio.sleep(0.1)
+                if os.path.exists("DADOS/stop_action.flag"):
+                    try:
+                        os.remove("DADOS/stop_action.flag")
+                    except Exception:
+                        pass
+                    voice_manager.interromper_fala_imediata()
+                    break
+                await asyncio.sleep(0.05)
         else:
             await atualizar_jarvis(cor_hex="#00ffff", texto="Pronto para comandos", padrao="conversa")
 
