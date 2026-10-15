@@ -65,6 +65,27 @@ async def processar_comando(texto_bruto: str):
         loop = asyncio.get_running_loop()
         resposta = await loop.run_in_executor(None, fii_monitor.obter_resumo_fiis)
 
+    elif categoria == "BRIEFING":
+        cor      = "#00e5ff"
+        padrao   = "tarefa"
+        await atualizar_jarvis(cor_hex=cor, texto="Iniciando Briefing Matinal...", padrao=padrao)
+        from MODULOS.skills import briefing_module
+        asyncio.create_task(briefing_module.executar_briefing_coreografado())
+        resposta = None
+
+    elif categoria == "BRIEFING_FOLLOWUP":
+        cor      = "#00ffff"
+        padrao   = "conversa"
+        await atualizar_jarvis(cor_hex=cor, texto="Aprofundando detalhes...", padrao="tarefa")
+        from MODULOS.skills import briefing_module
+        resposta = await briefing_module.responder_followup_briefing(texto_bruto)
+
+    elif categoria == "LEMBRETES":
+        cor      = "#ffaa00"
+        padrao   = "conversa"
+        from MODULOS.skills import reminders_module
+        resposta = reminders_module.processar_comando_voz(texto_bruto)
+
     elif categoria == "WEB_MCP":
         cor      = "#0088ff"
         padrao   = "tarefa"

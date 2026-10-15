@@ -57,6 +57,9 @@ try:
     download_status = {"ativo": False, "progresso": 0, "mensagem": "", "modelos": {}, "progresso_total": 0}
     sharding_status = {"ativo": False, "progresso": 0, "mensagem": ""}
     hardware_status = {}
+    
+    FLAG_MIC_MUTED = os.path.join(ROOT_DIR, "DADOS", "mic_muted.flag")
+    mic_muted = False
 
     async def broadcast_hardware_status():
         from MODULOS.skills import hardware_module
@@ -66,12 +69,18 @@ try:
                 hw_info = {
                     "cpu_usage": psutil.cpu_percent(),
                     "ram_usage": psutil.virtual_memory().percent,
+                    "cpu_temp": await hardware_module.ler_temperatura_cpu_lhm(),
+                    "gpu_load": 0,
+                    "gpu_temp": "N/A",
+                    "vram_used_gb": "N/A",
+                    "gpu_power": "N/A",
                 }
                 # Tenta pegar dados da GPU (pode falhar se hardware_module não estiver pronto ou sem GPU)
                 try:
                     gpu_data = await hardware_module._ler_gpu_lhm()
                     hw_info.update(gpu_data)
-                except: pass
+                except Exception:
+                    pass
                 
                 await manager.broadcast({"type": "hardware_update", "hardware": hw_info})
             except Exception:
@@ -80,6 +89,13 @@ try:
 
     @app.on_event("startup")
     async def startup_event():
+        global mic_muted
+        if os.path.exists(FLAG_MIC_MUTED):
+            try:
+                os.remove(FLAG_MIC_MUTED)
+            except Exception:
+                pass
+        mic_muted = False
         asyncio.create_task(broadcast_hardware_status())
 
     @app.get("/")
@@ -188,6 +204,47 @@ try:
         await manager.broadcast(data)
         return {"status": "ok"}
 
+    @app.post("/api/mic/toggle_mute")
+    async def toggle_mute():
+        global mic_muted
+        os.makedirs(os.path.join(ROOT_DIR, "DADOS"), exist_ok=True)
+        ja_mutado = os.path.exists(FLAG_MIC_MUTED) or os.path.exists("DADOS/mic_muted.flag")
+        mic_muted = not ja_mutado
+        
+        if mic_muted:
+            with open(FLAG_MIC_MUTED, "w", encoding="utf-8") as f:
+                f.write("muted")
+            msg = {
+                "type": "mic_mute_update",
+                "muted": True,
+                "cor": "#ff0055",
+                "texto": "Microfone Mutado",
+                "padrao": "dormindo"
+            }
+            print("[INTERFACE] Microfone MUTADO.")
+        else:
+            for p in (FLAG_MIC_MUTED, "DADOS/mic_muted.flag"):
+                if os.path.exists(p):
+                    try:
+                        os.remove(p)
+                    except Exception:
+                        pass
+            msg = {
+                "type": "mic_mute_update",
+                "muted": False,
+                "cor": "#00ffff",
+                "texto": "Microfone Ativo - Ouvindo...",
+                "padrao": "conversa"
+            }
+            print("[INTERFACE] Microfone DESMUTADO (Ativo).")
+
+        await manager.broadcast(msg)
+        return {"status": "ok", "muted": mic_muted}
+
+    @app.get("/api/mic/status")
+    async def get_mic_status():
+        return {"muted": os.path.exists("DADOS/mic_muted.flag") or os.path.exists(FLAG_MIC_MUTED)}
+
     @app.post("/api/mic/stop")
     async def stop_mic():
         os.makedirs(os.path.join(ROOT_DIR, "DADOS"), exist_ok=True)
@@ -196,6 +253,99 @@ try:
             f.write("stop")
         print("[INTERFACE] Sinal de parada de gravação enviado.")
         return {"status": "ok", "mensagem": "Parada de gravação solicitada."}
+
+    @app.get("/api/voice/config")
+    async def get_voice_config():
+        from MODULOS.voice.voice_manager import carregar_config_voz, VOZES_DISPONIVEIS
+        cfg = carregar_config_voz()
+        return {
+            "config": cfg,
+            "opcoes": VOZES_DISPONIVEIS
+        }
+
+    @app.post("/api/voice/config")
+    async def set_voice_config(data: dict):
+        from MODULOS.voice.voice_manager import salvar_config_voz
+        motor = data.get("motor", "kokoro")
+        voz = data.get("voz", "blend_jarvis")
+        nome = data.get("nome", "")
+        efeito_jarvis = data.get("efeito_jarvis") if "efeito_jarvis" in data else None
+        novo_cfg = salvar_config_voz(motor=motor, voz=voz, nome=nome, efeito_jarvis=efeito_jarvis)
+        print(f"[INTERFACE] Voz do Jarvis alterada para: {novo_cfg}")
+        
+        # Sinaliza para o processo principal (main.py) executar a frase de teste
+        try:
+            flag_teste = os.path.join(ROOT_DIR, "DADOS", "teste_voz.flag")
+            os.makedirs(os.path.dirname(flag_teste), exist_ok=True)
+            with open(flag_teste, "w", encoding="utf-8") as f:
+                f.write("Calibragem acústica concluída. Sistemas de voz operantes, senhor.")
+            print("[INTERFACE] Sinal teste_voz.flag gravado para reprodução no processo principal.")
+        except Exception as e:
+            print(f"[INTERFACE] Erro ao gravar teste_voz.flag: {e}")
+            
+        return {"status": "ok", "config": novo_cfg}
+
+    @app.get("/api/news/config")
+    async def get_news_config():
+        from MODULOS.skills.mcp_client import carregar_config_noticias
+        return carregar_config_noticias()
+
+    @app.post("/api/news/config")
+    async def set_news_config(data: dict):
+        from MODULOS.skills.mcp_client import carregar_config_noticias, salvar_config_noticias
+        cfg = carregar_config_noticias()
+        if "categorias" in data:
+            cfg["categorias"] = list(data["categorias"])
+        if "incluir_cotacoes" in data:
+            cfg["incluir_cotacoes"] = bool(data["incluir_cotacoes"])
+        if "detalhamento" in data:
+            cfg["detalhamento"] = str(data["detalhamento"])
+        salvo = salvar_config_noticias(cfg)
+        print(f"[INTERFACE] Configuração do Briefing de Notícias atualizada: {salvo}")
+        return {"status": "ok", "config": salvo}
+
+    # ── ROTAS DE LEMBRETES / AGENDA ──
+    @app.get("/api/reminders")
+    async def get_reminders():
+        from MODULOS.skills import reminders_module
+        return {"reminders": reminders_module.listar_todos_lembretes()}
+
+    @app.post("/api/reminders")
+    async def create_reminder(data: dict):
+        from MODULOS.skills import reminders_module
+        texto = data.get("texto", "").strip()
+        horario = data.get("horario", "").strip()
+        if not texto:
+            return {"status": "erro", "mensagem": "Texto do lembrete não informado."}
+        novo = reminders_module.adicionar_lembrete(texto=texto, horario=horario)
+        return {"status": "ok", "reminder": novo}
+
+    @app.delete("/api/reminders/{rem_id}")
+    async def delete_reminder(rem_id: str):
+        from MODULOS.skills import reminders_module
+        sucesso = reminders_module.remover_lembrete(rem_id)
+        return {"status": "ok" if sucesso else "nao_encontrado"}
+
+    @app.put("/api/reminders/{rem_id}/toggle")
+    @app.post("/api/reminders/{rem_id}/toggle")
+    async def toggle_reminder(rem_id: str):
+        from MODULOS.skills import reminders_module
+        sucesso = reminders_module.alternar_lembrete(rem_id)
+        return {"status": "ok" if sucesso else "nao_encontrado"}
+
+    # ── ROTAS DE BRIEFING COREOGRAFADO ──
+    @app.post("/api/briefing/start")
+    async def start_briefing():
+        from MODULOS.skills import briefing_module
+        if briefing_module.BRIEFING_EM_ANDAMENTO:
+            return {"status": "em_andamento", "mensagem": "Briefing já está em execução."}
+        asyncio.create_task(briefing_module.executar_briefing_coreografado())
+        return {"status": "iniciado", "mensagem": "Briefing matinal coreografado iniciado."}
+
+    @app.get("/api/briefing/status")
+    async def get_briefing_status():
+        from MODULOS.skills import briefing_module
+        return {"ativo": briefing_module.BRIEFING_EM_ANDAMENTO}
 
     @app.post("/api/comando_manual")
     async def comando_manual(data: dict):

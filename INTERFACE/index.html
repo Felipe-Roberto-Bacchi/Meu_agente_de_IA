@@ -2,25 +2,222 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>JARVIS CORE V5</title>
     <link rel="stylesheet" href="/INTERFACE/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-<!-- 🛠️ SWITCHER DE DEBUG (ORIGINAL + GRÁFICOS) -->
-<div id="debug-switcher">
-    <button class="debug-btn" onclick="debugSetState('home')">Home</button>
-    <button class="debug-btn" onclick="debugSetState('setup')">Setup</button>
-    <button class="debug-btn" onclick="debugSetState('download')">Download</button>
-    <button class="debug-btn" onclick="debugSetState('sharding')">Sharding</button>
-    <button class="debug-btn" onclick="showGraphs(true)" style="border-color:#ff00ff; color:#ff00ff;">Gráficos</button>
-    <button class="debug-btn" id="btn-download-heavy" onclick="baixarModelosPesados()" style="border-color:#ffaa00; color:#ffaa00;">Baixar Modelos Pesados (Opcional - 32B/72B)</button>
-</div>
+<!-- 🌌 BARRA SUPERIOR HUD FUTURISTA -->
+<header id="hud-top-bar">
+    <div class="hud-brand-telemetry">
+        <div class="hud-brand">
+            <span class="hud-pulse-dot" id="system-status-dot"></span>
+            <span class="hud-title">JARVIS</span>
+            <span class="hud-divider">//</span>
+            <span class="hud-sub">NEURAL CORE</span>
+        </div>
+        <div class="hud-badges" onclick="showGraphs(true)" title="Telemetria Neural - Clique para abrir Dashboard">
+            <div class="telemetry-badge" id="badge-cpu">
+                <span class="badge-label">CPU</span>
+                <span class="badge-val" id="top-cpu">--%</span>
+            </div>
+            <div class="telemetry-badge" id="badge-gpu">
+                <span class="badge-label">GPU</span>
+                <span class="badge-val" id="top-gpu">--%</span>
+            </div>
+            <div class="telemetry-badge" id="badge-ram">
+                <span class="badge-label">RAM</span>
+                <span class="badge-val" id="top-ram">--%</span>
+            </div>
+        </div>
+    </div>
 
-<!-- DASHBOARD DE HARDWARE (HUD) -->
+    <div class="hud-top-actions">
+        <!-- Menu Sistema Dropdown -->
+        <div class="dropdown-wrapper">
+            <button id="btn-sys-menu" class="hud-top-btn" onclick="toggleSysMenu(event)">
+                <span class="btn-icon">⚙️</span> SISTEMA <span class="arrow-down">▾</span>
+            </button>
+            <div id="sys-dropdown" class="hud-dropdown-menu">
+                <div class="dropdown-header">GESTÃO DO NÚCLEO</div>
+                <button class="dropdown-item" onclick="debugSetState('setup'); closeSysMenu();">
+                    <span class="item-icon">📁</span> Configurar Diretórios (Setup)
+                </button>
+                <button class="dropdown-item" onclick="baixarModelosPesados(); closeSysMenu();">
+                    <span class="item-icon">⚡</span> Baixar Modelos Pesados (32B/72B)
+                </button>
+                <button class="dropdown-item" onclick="showGraphs(true); closeSysMenu();">
+                    <span class="item-icon">📊</span> Telemetria Completa (HUD)
+                </button>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-header">VOZ DO JARVIS (TTS)</div>
+                <button class="dropdown-item voice-opt" id="vopt-kokoro_alex" onclick="selecionarVoz('kokoro', 'pm_alex', '🎙️ Kokoro: Alex (Local CPU)')">
+                    <span class="item-icon">🎙️</span> Kokoro: Alex (Local CPU)
+                </button>
+                <button class="dropdown-item voice-opt" id="vopt-kokoro_dora" onclick="selecionarVoz('kokoro', 'pf_dora', '🎙️ Kokoro: Dora (Local CPU - Clara)')">
+                    <span class="item-icon">🎙️</span> Kokoro: Dora (Local CPU - Clara)
+                </button>
+                <button class="dropdown-item voice-opt" id="vopt-kokoro_santa" onclick="selecionarVoz('kokoro', 'pm_santa', '🎙️ Kokoro: Santa (Local CPU - Grave)')">
+                    <span class="item-icon">🎙️</span> Kokoro: Santa (Local CPU - Grave)
+                </button>
+                <button class="dropdown-item voice-opt" id="vopt-kokoro_blend" onclick="selecionarVoz('kokoro', 'blend_jarvis', '🎙️ Kokoro: Jarvis Blend (Local CPU)')">
+                    <span class="item-icon">🎙️</span> Kokoro: Jarvis Blend
+                </button>
+                <button class="dropdown-item voice-opt selected" id="vopt-edge_antonio" onclick="selecionarVoz('edge', 'pt-BR-AntonioNeural', '⚡ Neural: Antonio (Zero CPU - Rápido)')">
+                    <span class="item-icon">⚡</span> Neural: Antonio (Zero CPU - Rápido)
+                </button>
+                <button class="dropdown-item voice-opt" id="vopt-edge_francisca" onclick="selecionarVoz('edge', 'pt-BR-FranciscaNeural', '⚡ Neural: Francisca (Zero CPU - Rápido)')">
+                    <span class="item-icon">⚡</span> Neural: Francisca (Zero CPU - Rápido)
+                </button>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-header">PROCESSAMENTO VOCAL</div>
+                <button class="dropdown-item toggle-dsp-btn active" id="btn-toggle-dsp" onclick="alternarEfeitoJarvis()" title="Ativar ou desativar efeito metálico de capacete/HUD do Jarvis">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <span class="item-icon">🎛️</span>
+                        <span id="dsp-toggle-text">Modo Stark (ON)</span>
+                    </div>
+                    <span class="dsp-state-badge" id="dsp-badge">ATIVO</span>
+                </button>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-header">BRIEFING DE NOTÍCIAS</div>
+                <button class="dropdown-item news-toggle active" id="news-toggle-mundo" onclick="alternarCategoriaNoticia('mundo')" title="Alternar Notícias Internacionais, EUA e Geopolítica">
+                    <div class="news-item-label">
+                        <span class="item-icon">🌍</span>
+                        <span>Internacional & EUA</span>
+                    </div>
+                    <span class="toggle-check">✓</span>
+                </button>
+                <button class="dropdown-item news-toggle active" id="news-toggle-cotacoes" onclick="alternarCotacoesNoticia()" title="Alternar Cotações do Dólar, Euro, Bitcoin, Ibovespa e S&P 500">
+                    <div class="news-item-label">
+                        <span class="item-icon">📈</span>
+                        <span>Mercado & Cotações</span>
+                    </div>
+                    <span class="toggle-check">✓</span>
+                </button>
+                <button class="dropdown-item news-toggle active" id="news-toggle-brasil" onclick="alternarCategoriaNoticia('brasil')" title="Alternar Notícias de Política e Brasil">
+                    <div class="news-item-label">
+                        <span class="item-icon">🇧🇷</span>
+                        <span>Política & Brasil</span>
+                    </div>
+                    <span class="toggle-check">✓</span>
+                </button>
+                <button class="dropdown-item news-toggle active" id="news-toggle-tecnologia" onclick="alternarCategoriaNoticia('tecnologia')" title="Alternar Notícias de Tecnologia, Ciência e Inteligência Artificial">
+                    <div class="news-item-label">
+                        <span class="item-icon">💻</span>
+                        <span>Tecnologia & IA</span>
+                    </div>
+                    <span class="toggle-check">✓</span>
+                </button>
+                <div class="dropdown-divider"></div>
+                <div class="dropdown-header">DEBUG VIEWS</div>
+                <button class="dropdown-item sub-item" onclick="debugSetState('home'); closeSysMenu();">
+                    • Esfera Normal (Home)
+                </button>
+                <button class="dropdown-item sub-item" onclick="debugSetState('download'); closeSysMenu();">
+                    • Interface Download
+                </button>
+                <button class="dropdown-item sub-item" onclick="debugSetState('sharding'); closeSysMenu();">
+                    • Interface Sharding
+                </button>
+            </div>
+        </div>
+
+        <!-- Botão Rápido Briefing Matinal -->
+        <button id="btn-trigger-briefing" class="hud-top-btn briefing-btn" onclick="iniciarBriefingManual()" title="Disparar Briefing Matinal Coreografado com Hologramas">
+            <span class="btn-icon">🌅</span> BRIEFING
+        </button>
+
+        <!-- Botão Gaveta de Agentes -->
+        <button id="btn-toggle-drawer" class="hud-top-btn" onclick="toggleAgentsDrawer()" title="Ver Agentes e Atividades em 2º Plano">
+            <span class="btn-icon">⚡</span> AGENTES
+        </button>
+    </div>
+</header>
+
+<!-- ⚡ GAVETA LATERAL RETRÁTIL (AGENTES & HISTÓRICO) -->
+<aside id="agents-drawer">
+    <div id="drawer-handle" onclick="toggleAgentsDrawer()" title="Alternar Gaveta de Agentes">
+        <span id="handle-arrow">◀</span>
+        <span class="handle-text">AGENTES</span>
+    </div>
+    <div class="drawer-content">
+        <div class="drawer-header">
+            <div class="drawer-title">
+                <span class="drawer-icon">⚡</span>
+                <span>AGENTES NEURAIS</span>
+            </div>
+            <button class="drawer-close" onclick="toggleAgentsDrawer(false)">✕</button>
+        </div>
+
+        <!-- SEÇÃO 1: AGENTES E TAREFAS EM 2º PLANO -->
+        <div class="drawer-section">
+            <div class="section-title">ATIVIDADE EM SEGUNDO PLANO</div>
+            <div id="active-agent-card" class="agent-card">
+                <div class="agent-card-header">
+                    <span class="agent-status-led" id="current-agent-led"></span>
+                    <span class="agent-name" id="current-agent-name">Roteador Neural</span>
+                    <span class="agent-tag" id="current-agent-tag">ATIVO</span>
+                </div>
+                <div class="agent-card-desc" id="current-agent-desc">Aguardando comandos de voz ou texto...</div>
+                <div class="agent-card-time" id="current-agent-time">Agora</div>
+            </div>
+
+            <div class="agent-cards-grid">
+                <div class="mini-agent-card" id="card-mcp">
+                    <div class="mini-agent-title"><span>🌐</span> Web MCP</div>
+                    <div class="mini-agent-status" id="status-mcp">DuckDuckGo / Wiki</div>
+                </div>
+                <div class="mini-agent-card" id="card-vision">
+                    <div class="mini-agent-title"><span>👁️</span> Visão</div>
+                    <div class="mini-agent-status" id="status-vision">Moondream Standby</div>
+                </div>
+                <div class="mini-agent-card" id="card-memory">
+                    <div class="mini-agent-title"><span>🧠</span> Memória</div>
+                    <div class="mini-agent-status" id="status-memory">ChromaDB Conectado</div>
+                </div>
+                <div class="mini-agent-card" id="card-sentinel">
+                    <div class="mini-agent-title"><span>🛡️</span> Sentinela</div>
+                    <div class="mini-agent-status" id="status-sentinel">Proteção Térmica</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEÇÃO 2: AGENDA & LEMBRETES -->
+        <div class="drawer-section">
+            <div class="section-title-row">
+                <span class="section-title">AGENDA & LEMBRETES</span>
+                <button class="add-rem-btn" onclick="abrirModalLembrete()" title="Adicionar Lembrete">+ NOVO</button>
+            </div>
+            <div id="drawer-reminders-list" class="reminders-list">
+                <div class="reminder-empty">Carregando agenda...</div>
+            </div>
+        </div>
+
+        <!-- SEÇÃO 3: HISTÓRICO RECENTE DE INTERAÇÕES (LOG) -->
+        <div class="drawer-section flex-grow">
+            <div class="section-title-row">
+                <span class="section-title">LOG DE INTERAÇÕES</span>
+                <button class="clear-log-btn" onclick="limparHistoricoLog()" title="Limpar Histórico">Limpar</button>
+            </div>
+            <div id="drawer-history-list" class="history-list">
+                <div class="history-item system">
+                    <span class="history-time">BOOT</span>
+                    <span class="history-sender">SISTEMA:</span>
+                    <span class="history-body">Jarvis Neural Core V5 inicializado e conectado.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</aside>
+
+<!-- DASHBOARD DE HARDWARE (HUD MODAL) -->
 <div id="page-graphs">
     <div style="width:100%; display:flex; justify-content:flex-end; max-width:1200px;">
-        <button class="debug-btn" onclick="showGraphs(false)">FECHAR HUD [X]</button>
+        <button class="debug-btn hud-close-btn" onclick="showGraphs(false)">FECHAR HUD [X]</button>
     </div>
     <h2 style="color:#00ffff; letter-spacing:15px; margin-bottom:40px; font-weight:300; text-shadow:0 0 10px #00ffff; text-align:center;">SISTEMA NEURAL</h2>
     <div class="grid-container">
@@ -28,13 +225,13 @@
             <div class="card-title">PROCESSADOR (CPU)</div>
             <div class="metric-value"><span id="metric-cpu">0</span><span class="metric-unit">%</span></div>
             <div id="chart-cpu" class="chart-container"></div>
-            <div style="font-size:10px; color:#444;" id="cpu-temp">TEMP: --°C</div>
+            <div style="font-size:11px; color:#666;" id="cpu-temp">TEMP: --°C</div>
         </div>
         <div class="card">
             <div class="card-title">ACELERAÇÃO NEURAL (GPU)</div>
             <div class="metric-value"><span id="metric-gpu">0</span><span class="metric-unit">%</span></div>
             <div id="chart-gpu" class="chart-container"></div>
-            <div style="font-size:10px; color:#444;" id="gpu-stats">TEMP: --°C | VRAM: -- | PWR: --</div>
+            <div style="font-size:11px; color:#666;" id="gpu-stats">TEMP: --°C | VRAM: -- | PWR: --</div>
         </div>
         <div class="card">
             <div class="card-title">MEMÓRIA RAM</div>
@@ -44,19 +241,56 @@
         <div class="card">
             <div class="card-title">AIRLLM (ESTIMATIVA)</div>
             <div class="metric-value">READY</div>
-            <div style="font-size:10px; color:#444;">I/O: 350MB/s (SSD/HD)</div>
+            <div style="font-size:11px; color:#666;">I/O: 350MB/s (SSD/HD)</div>
         </div>
     </div>
 </div>
 
+<!-- GRADE BLUEPRINT HUD (CAMADA FIXA DE TELA CHEIA, INDEPENDENTE DA ESFERA) -->
+<div class="bg-blueprint-grid" aria-hidden="true"></div>
+
+<!-- CANVAS DA ESFERA THREE.JS -->
 <div id="canvas-container"></div>
+
+<!-- 🌌 STAGE HOLOGRÁFICO DO BRIEFING MATINAL (CARDS CENTRAIS EM DESTAQUE) -->
+<div id="briefing-stage" class="hidden"></div>
+
+<!-- 🌌 DOCK INFERIOR: CARDS DE VIDRO FLUTUANTES (SEM CAIXA DE FUNDO) -->
+<div id="briefing-dock" class="hidden">
+    <div id="briefing-dock-row"></div>
+    <button id="btn-briefing-clear" class="briefing-clear-btn" onclick="fecharBriefingDock()" title="Fechar os hologramas do briefing">✕ Limpar Tela</button>
+</div>
+
+<!-- 📋 MODAL DE NOVO LEMBRETE -->
+<div id="modal-lembrete" class="modal-overlay hidden" onclick="if(event.target===this) fecharModalLembrete()">
+    <div class="modal-card">
+        <div class="modal-header">
+            <span class="modal-title">NOVO LEMBRETE // AGENDA</span>
+            <button class="drawer-close" onclick="fecharModalLembrete()">✕</button>
+        </div>
+        <div class="modal-body">
+            <input type="text" id="input-rem-texto" class="modal-input" placeholder="O que o senhor deseja agendar/lembrar?..." onkeydown="if(event.key==='Enter') salvarNovoLembrete()">
+            <input type="text" id="input-rem-horario" class="modal-input" placeholder="Horário opcional (ex: 14:30)..." onkeydown="if(event.key==='Enter') salvarNovoLembrete()">
+        </div>
+        <div class="modal-actions">
+            <button class="modal-btn secondary" onclick="fecharModalLembrete()">CANCELAR</button>
+            <button class="modal-btn primary" onclick="salvarNovoLembrete()">SALVAR LEMBRETE</button>
+        </div>
+    </div>
+</div>
+
+<!-- CAMADA DE LEGENDA COMPACTA (POSICIONADA ACIMA DO CONTROL DOCK) -->
 <div id="ui-layer">
     <div class="label" id="status-label">Neural Core V5 Active</div>
     <div id="subtitles">INICIALIZANDO SISTEMAS...</div>
 </div>
 
-<!-- PAINEL DE CONTROLE MANUAL (PARAR GRAVAÇÃO / ENVIAR COMANDO) -->
+<!-- DOCK DE CONTROLE INFERIOR FLUTUANTE -->
 <div id="control-bar">
+    <button id="btn-mute-mic" class="hud-btn-mute" onclick="alternarMuteMic()" title="Mutar/Desmutar Microfone">
+        <span class="btn-icon" id="mute-icon">🎤</span>
+        <span class="btn-text" id="mute-text">MIC ATIVO</span>
+    </button>
     <button id="btn-stop-mic" class="hud-btn-stop" onclick="pararGravacaoMic()" title="Interrompe o microfone e envia o áudio imediatamente">
         <span class="btn-icon">⏹️</span>
         <span class="btn-text">PARAR E ENVIAR</span>

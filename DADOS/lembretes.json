@@ -1,0 +1,16 @@
+[
+  {
+    "id": "rem_001",
+    "texto": "Reunião de alinhamento estratégico do projeto",
+    "horario": "14:30",
+    "criado_em": "15/10/2026 09:00",
+    "concluido": false
+  },
+  {
+    "id": "rem_002",
+    "texto": "Revisar telemetria de sensores e núcleos de IA",
+    "horario": "17:00",
+    "criado_em": "15/10/2026 09:15",
+    "concluido": false
+  }
+]

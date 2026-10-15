@@ -1,0 +1,10 @@
+{
+    "categorias": [
+        "mundo",
+        "economia",
+        "brasil",
+        "tecnologia"
+    ],
+    "incluir_cotacoes": true,
+    "detalhamento": "completo"
+}

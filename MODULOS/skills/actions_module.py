@@ -20,27 +20,45 @@ PROGRAMAS_INSTALADOS = {}
 def escanear_e_salvar():
     print("[ACTIONS] Jarvis localizando executaveis no sistema...")
     
-    # Palavras que indicam que o arquivo NÃO é um programa principal
+    # Pastas que NUNCA devem ser escaneadas
+    blacklist_dirs = [
+        'git\\usr', 'git\\mingw', 'installer', '.venv', 'site-packages',
+        'node_modules', 'target\\release', 'target\\debug', 'cuda', 'sdk',
+        'framing', 'resources\\bin', 'common files'
+    ]
+
+    # Palavras que indicam que o arquivo NÃO é um programa principal do usuário
     blacklist = [
         'unins', 'setup', 'installer', 'helper', 'crash', 'proxy', 'msal', 
-        'driver', 'cmd', 'wmp', 'imagingdevices', 'patch', 'update', 'fix'
+        'driver', 'cmd', 'wmp', 'imagingdevices', 'patch', 'update', 'fix',
+        'icon', 'cli', 'build_script', 'python314', 'daemon', 'service',
+        'agent', 'crashpad', 'redist'
     ]
     
     pastas = [
-        os.path.join(os.environ['PROGRAMDATA'], 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
-        os.path.join(os.environ['APPDATA'], 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
-        os.path.join(os.environ['LOCALAPPDATA'], 'Discord'),
+        os.path.join(os.environ.get('PROGRAMDATA', 'C:\\ProgramData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+        os.path.join(os.environ.get('APPDATA', ''), 'Microsoft', 'Windows', 'Start Menu', 'Programs'),
+        os.path.join(os.environ.get('LOCALAPPDATA', ''), 'Discord'),
         os.path.join(os.path.expanduser("~"), "Desktop"),
         r"C:\Program Files",
         r"C:\Program Files (x86)"
     ]
     
-    shell = Dispatch('WScript.Shell')
+    shell = Dispatch('WScript.Shell') if Dispatch else None
     encontrados = {}
 
     for pasta in pastas:
-        if not os.path.exists(pasta): continue
-        for root, _, files in os.walk(pasta):
+        if not pasta or not os.path.exists(pasta): continue
+        for root, dirs, files in os.walk(pasta):
+            # Filtra subpastas em tempo de percurso para não gastar tempo nem indexar lixo
+            dirs[:] = [
+                d for d in dirs 
+                if not any(b in os.path.join(root, d).lower() for b in blacklist_dirs)
+            ]
+            root_lower = root.lower()
+            if any(b in root_lower for b in blacklist_dirs):
+                continue
+
             for file in files:
                 if file.endswith((".lnk", ".exe")):
                     nome_limpo = file.replace(".lnk", "").replace(".exe", "").lower()
@@ -52,16 +70,21 @@ def escanear_e_salvar():
                     caminho_completo = os.path.join(root, file)
                     
                     if file.endswith(".lnk"):
-                        try:
-                            target = shell.CreateShortCut(caminho_completo).TargetPath
-                            if target and os.path.exists(target) and target.lower().endswith(".exe"):
-                                encontrados[nome_limpo] = target
-                        except: continue
+                        if shell:
+                            try:
+                                target = shell.CreateShortCut(caminho_completo).TargetPath
+                                if target and os.path.exists(target) and target.lower().endswith(".exe"):
+                                    t_lower = target.lower()
+                                    if not any(b in t_lower for b in blacklist_dirs) and not any(w in t_lower for w in blacklist):
+                                        encontrados[nome_limpo] = target
+                            except: continue
                     else:
                         encontrados[nome_limpo] = caminho_completo
 
+    os.makedirs(os.path.dirname(CACHE_FILE), exist_ok=True)
     with open(CACHE_FILE, "w", encoding="utf-8") as f:
-        json.dump(encontrados, f, indent=4)
+        json.dump(encontrados, f, indent=4, ensure_ascii=False)
+    print(f"[ACTIONS] Cache de aplicativos atualizado com {len(encontrados)} programas limpos.")
     return encontrados
 
 def perguntar_ao_llama_sobre_programa(alvo, lista_programas):

@@ -17,3 +17,11 @@ async def atualizar_jarvis(cor_hex="#00ffff", intensidade=0.1, texto="", padrao=
         await client.post("http://localhost:8000/update", json=payload)
     except Exception:
         pass
+
+async def enviar_evento_interface(dados: dict):
+    try:
+        client = _get_client()
+        await client.post("http://localhost:8000/update", json=dados)
+    except Exception:
+        pass
+

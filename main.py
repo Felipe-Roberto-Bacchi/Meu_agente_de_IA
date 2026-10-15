@@ -51,6 +51,20 @@ async def loop_principal():
     estado_anterior = None
     
     while True:
+        # 0. Verifica se chegou solicitação de teste de voz pela interface
+        flag_teste_voz = "DADOS/teste_voz.flag"
+        if os.path.exists(flag_teste_voz):
+            try:
+                with open(flag_teste_voz, "r", encoding="utf-8") as f:
+                    texto_teste = f.read().strip()
+                os.remove(flag_teste_voz)
+                if texto_teste:
+                    log.info(f"[TESTE DE VOZ]: \"{texto_teste}\"")
+                    await atualizar_jarvis(cor_hex="#00ffff", texto=texto_teste, padrao="conversa")
+                    await voice_manager.falar("Jarvis", texto_teste, prioridade=0)
+            except Exception as e_teste:
+                log.error(f"Erro ao processar teste_voz.flag: {e_teste}")
+
         # 1. Verifica se chegou comando manual de texto pela interface
         flag_manual = "DADOS/comando_manual.txt"
         if os.path.exists(flag_manual):
@@ -124,6 +138,10 @@ async def loop_principal():
             log.info(f"[JARVIS]: {resposta}")
             memory_long.registrar_conversa_global("assistant", resposta)
             await voice_manager.falar("Jarvis", resposta, prioridade=1)
+            # Aguarda a fala iniciar e concluir para não gravar eco ou cliques
+            await asyncio.sleep(0.15)
+            while voice_manager.STATUS_FALANDO:
+                await asyncio.sleep(0.1)
         else:
             await atualizar_jarvis(cor_hex="#00ffff", texto="Pronto para comandos", padrao="conversa")
 
@@ -176,7 +194,7 @@ if __name__ == "__main__":
 
         brain_selector.calibrar_e_salvar()
         memory_long.inicializar_banco()
-        ear.inicializar_whisper()
+        # Whisper e Kokoro operam em lazy-loading sob demanda para boot quase instantâneo
         ear.calibrar_ruido(duracao=2)
 
         asyncio.run(loop_principal())

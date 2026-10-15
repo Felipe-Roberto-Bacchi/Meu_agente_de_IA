@@ -1,10 +1,14 @@
 import sys
 import os
 
-# Adiciona a pasta MODULOS ao path para permitir a importação
-sys.path.append(os.path.join(os.path.dirname(__file__), 'MODULOS'))
+# Adiciona a raiz do projeto e a pasta MODULOS/skills ao path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'MODULOS', 'skills')))
 
-from fii_monitor import obter_resumo_fiis
+try:
+    from MODULOS.skills.fii_monitor import obter_resumo_fiis
+except ImportError:
+    from fii_monitor import obter_resumo_fiis
 
 def testar_monitor_financeiro():
     print("="*60)

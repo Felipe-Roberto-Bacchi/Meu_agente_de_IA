@@ -1,0 +1,9 @@
+{
+    "cpu_modelo": "AMD Ryzen 5 3550H with Radeon Vega Mobile Gfx",
+    "cpu_cores": "4 cores / 8 threads",
+    "gpu_modelo": "NVIDIA GeForce GTX 1650",
+    "vram_total_gb": 4.0,
+    "ram_total_gb": 29.94,
+    "os_versao": "Windows 11",
+    "mapeado_em": "Felipe"
+}

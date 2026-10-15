@@ -68,6 +68,40 @@ def _rota_por_keywords(texto: str) -> dict | None:
                            "quem sou", "como me chamo"]
     gatilhos_esquecer_mem = ["esquece", "apaga", "deleta"]
 
+    gatilhos_briefing = [
+        "bom dia", "resumo do dia", "notícias de hoje", "noticias de hoje",
+        "briefing matinal", "briefing", "telemetria matinal", "giro do dia",
+        "panorama do dia", "iniciar briefing"
+    ]
+    if any(g in t for g in gatilhos_briefing):
+        return {"categoria": "BRIEFING", "alvo": texto}
+
+    gatilhos_followup_briefing = [
+        "me fale mais sobre", "fale mais sobre", "me fala mais sobre", "fala mais sobre",
+        "explique melhor a notícia", "explique melhor a noticia",
+        "explique melhor essa notícia", "explique melhor essa noticia",
+        "explique a notícia", "explique a noticia", "explique melhor",
+        "sobre esse assunto", "sobre este assunto", "sobre essa notícia", "sobre essa noticia",
+        "sobre essa materia", "sobre essa matéria", "sobre essa manchete",
+        "detalhe a notícia", "detalhe a noticia", "detalhe essa notícia", "detalhe essa noticia",
+        "detalhe a matéria", "detalhe a materia", "detalhe mais", "detalhes sobre",
+        "me conte mais sobre", "conte mais sobre", "me conta mais sobre", "conta mais sobre",
+        "qual é a notícia", "qual e a noticia", "qual é essa notícia", "qual e essa noticia",
+        "fale mais dessa notícia", "fale mais dessa noticia",
+        "mais detalhes sobre", "mais detalhes da notícia", "mais detalhes dessa notícia"
+    ]
+    if any(g in t for g in gatilhos_followup_briefing):
+        return {"categoria": "BRIEFING_FOLLOWUP", "alvo": texto}
+
+    gatilhos_lembretes = [
+        "me lembre de", "me lembre", "lembrar de", "adicionar lembrete",
+        "criar lembrete", "novo lembrete", "minha agenda", "meus lembretes",
+        "quais são meus lembretes", "quais sao meus lembretes", "listar lembretes",
+        "concluir lembrete", "marcar lembrete", "agenda de hoje"
+    ]
+    if any(g in t for g in gatilhos_lembretes):
+        return {"categoria": "LEMBRETES", "alvo": texto}
+
     # 1. Abertura de apps
     for g in gatilhos_app:
         if g in t:
@@ -100,6 +134,18 @@ def _rota_por_keywords(texto: str) -> dict | None:
     # 6. Mercado Financeiro
     if any(g in t for g in gatilhos_fii):
         return {"categoria": "FINANCE", "alvo": texto}
+
+    # 7. Visão / Análise de Tela
+    gatilhos_visao = [
+        "modo de visão", "modo de visao", "modo visão", "modo visao",
+        "sua visão", "sua visao", "olha a tela", "olhe a tela",
+        "vê na tela", "ve na tela", "o que está na tela", "o que esta na tela",
+        "analise a tela", "analisar tela", "tira um print", "tire um print",
+        "o que você vê", "o que voce ve", "descreva a tela", "descrever a tela",
+        "olhe para a tela", "olha pra tela", "olhe pra tela"
+    ]
+    if any(g in t for g in gatilhos_visao):
+        return {"categoria": "VISAO", "alvo": texto}
 
     return None
 

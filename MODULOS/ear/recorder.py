@@ -14,6 +14,7 @@ CHUNK_SIZE       = 1024
 THRESHOLD_BARULHO = 0.0025
 DEVICE_ID        = None
 TIMEOUT_ATIVO    = 60
+MAX_DURACAO_FALA = 15.0
 
 # Stream persistente com Pré-Buffer contínuo de 1.5s
 _audio_queue = queue.Queue(maxsize=300)
@@ -136,7 +137,7 @@ def calibrar_ruido(duracao=2):
     else:
         THRESHOLD_BARULHO = 0.0015
 
-def gravar_fala(max_silencio_frames=18, arquivo="TEMP_AUDIO/input.wav", callback_feedback=None) -> bool:
+def gravar_fala(max_silencio_frames=16, arquivo="TEMP_AUDIO/input.wav", callback_feedback=None) -> bool:
     global _pre_buffer
     stream = garantir_stream()
     if stream is None or not stream.active:
@@ -165,10 +166,20 @@ def gravar_fala(max_silencio_frames=18, arquivo="TEMP_AUDIO/input.wav", callback
 
     # Limiares adaptativos calibrados
     limiar_ativacao = max(0.0010, THRESHOLD_BARULHO)
-    limiar_sustentacao = max(0.0007, THRESHOLD_BARULHO * 0.70)
-    MAX_DURACAO_FALA = 8.0  # Teto de segurança: máximo 8 segundos gravando
+    limiar_sustentacao = max(0.0012, THRESHOLD_BARULHO * 0.85)
+    MAX_DURACAO_FALA = 15.0  # Teto de segurança: máximo 15 segundos gravando
 
     while True:
+        if os.path.exists("DADOS/mic_muted.flag"):
+            while not _audio_queue.empty():
+                try:
+                    _audio_queue.get_nowait()
+                except queue.Empty:
+                    break
+            _pre_buffer.clear()
+            time.sleep(0.2)
+            return False
+
         if voice_manager.STATUS_FALANDO:
             time.sleep(0.05)
             return False
@@ -221,7 +232,8 @@ def gravar_fala(max_silencio_frames=18, arquivo="TEMP_AUDIO/input.wav", callback
                 log.info(f"[EAR] Limite de {MAX_DURACAO_FALA}s atingido ({duracao_atual:.1f}s). Processando áudio...")
                 break
 
-            if volume > limiar_sustentacao:
+            limiar_corte_silencio = max(limiar_sustentacao, limiar_ativacao * 0.90)
+            if volume > limiar_corte_silencio:
                 silencio_frames = 0
             else:
                 silencio_frames += 1
@@ -231,9 +243,9 @@ def gravar_fala(max_silencio_frames=18, arquivo="TEMP_AUDIO/input.wav", callback
     if audio_buffer and falando:
         audio_final = np.concatenate(audio_buffer, axis=0)
 
-        # Se tiver pelo menos 0.2s de áudio, salva e processa
+        # Se tiver pelo menos 0.45s de áudio, salva e processa (evita cliques de mouse/teclado)
         duracao_segundos = len(audio_final) / FS
-        if duracao_segundos < 0.20:
+        if duracao_segundos < 0.45:
             return False
 
         # Normalização de ganho (AGC)

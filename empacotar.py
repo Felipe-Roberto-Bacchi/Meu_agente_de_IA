@@ -2,7 +2,7 @@ import os
 
 # Configurações
 ARQUIVO_SAIDA = "CONTEXTO_JARVIS.md"
-PASTAS_IGNORAR = {'.git', '__pycache__', 'monitor', 'TEMP_AUDIO', 'DADOS'} # Pastas pesadas/binárias
+PASTAS_IGNORAR = {'.git', '__pycache__', 'monitor', 'TEMP_AUDIO'} # Pastas pesadas/binárias
 EXTENSOES_PERMITIDAS = {'.py', '.json', '.yaml', '.html', '.css', '.js'} # Só o que é código/texto
 
 def empacotar_projeto():

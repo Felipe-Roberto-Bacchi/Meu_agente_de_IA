@@ -4,7 +4,11 @@ import os
 def _ler_identidade() -> dict:
     path = "DADOS/jarvis_identity.json"
     if not os.path.exists(path):
-        path = os.path.join("teste", "jarvis_identity.json")
+        try:
+            from MODULOS.brain.models.identity_module import carregar_identidade
+            return carregar_identidade()
+        except Exception:
+            path = os.path.join("teste", "jarvis_identity.json")
     try:
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)

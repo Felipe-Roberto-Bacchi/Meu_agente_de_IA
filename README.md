@@ -1,5 +1,5 @@
 # ⚡ JARVIS - Núcleo de Inteligência Artificial Local & Sensorial
-### 🏛️ STARK INDUSTRIES ARCHITECTURE | VERSÃO ALPHA 0.03
+### 🏛️ STARK INDUSTRIES ARCHITECTURE | VERSÃO ALPHA 0.05
 
 <div align="center">
 
@@ -9,11 +9,12 @@
 ![Three.js](https://img.shields.io/badge/Three.js-000000?style=for-the-badge&logo=three.js&logoColor=white)
 ![Ollama](https://img.shields.io/badge/Ollama-Local_LLMs-black?style=for-the-badge)
 ![Whisper](https://img.shields.io/badge/Faster--Whisper-CUDA-blue?style=for-the-badge)
-![Kokoro-TTS](https://img.shields.io/badge/Kokoro--TTS-Local_Voice-purple?style=for-the-badge)
+![Edge-TTS & Kokoro](https://img.shields.io/badge/Dual--TTS-Stark_Voice-purple?style=for-the-badge)
+![ChromaDB](https://img.shields.io/badge/ChromaDB-Semantic_Memory-red?style=for-the-badge)
 
 <p align="center">
   <b>Um assistente pessoal inteligente, autônomo, 100% privado e local, inspirado no J.A.R.V.I.S. da ficção.</b><br>
-  Equipado com audição contínua em tempo real, voz neural ultrarrápida, visão computacional de tela, memória vetorial semântica de longo prazo, telemetria física de hardware e interface holográfica 3D interativa.
+  Equipado com audição contínua em tempo real, voz neural estilizada, visão computacional de tela, memória vetorial semântica de longo prazo, telemetria física de hardware, briefing matinal holográfico coreografado e interface 3D interativa.
 </p>
 
 </div>
@@ -33,6 +34,7 @@ O **JARVIS** foi arquitetado do zero para contornar esses gargalos com soluçõe
 - **Roteamento Neural Híbrido**: Respostas instantâneas para comandos comuns através de caminhos rápidos em Python/Regex e especialistas neurais dedicados para tarefas profundas.
 - **Auto-Calibração de Hardware**: Identifica dinamicamente sua CPU, memória RAM e VRAM dedicada, ajustando o perfil operacional desde placas modestas (4 GB VRAM) até sistemas topo de linha.
 - **Inferência Sharded (AirLLM)**: Capacidade de fatiar e rodar modelos massivos (como `Qwen 32B` e `72B`) camada por camada na memória secundária (SSD/HD), permitindo raciocínio de alta precisão em placas gráficas comuns.
+- **HUD Holográfico Stark**: Apresentação visual cinematográfica com Three.js, cards translúcidos de vidro (Glassmorphism), animações FLIP e transição suave da esfera neural para o modo Mini-Core.
 
 ---
 
@@ -42,30 +44,33 @@ O **JARVIS** foi arquitetado do zero para contornar esses gargalos com soluçõe
 flowchart TD
     subgraph SENSORIAL ["👂 CAMADA DE ENTRADA (SENTIDOS)"]
         MIC[🎤 Microfone DirectSound] --> STREAM[Stream Contínuo & Pré-Buffer 1.5s]
-        STREAM --> VAD[Detector de Voz & Calibração de Ruído]
+        STREAM --> VAD[Detector de Voz & Calibração de Silêncio 15s]
         VAD --> WHISPER[Faster-Whisper CUDA / Small]
         TELA[🖥️ Captura de Tela] --> VISION[Moondream VLM]
-        UI_IN[💬 Entrada Manual HUD] --> DISPATCHER
+        UI_IN[💬 Entrada Manual HUD & Ações Rápidas] --> DISPATCHER
     end
 
     WHISPER --> DISPATCHER[🧠 ROTEADOR NEURAL DE INTENÇÕES]
 
     subgraph CEREBRO ["🧠 MATRIZ NEURAL (DISPATCHER)"]
         DISPATCHER -->|CONVERSA| LLM_CONVERSA[Llama 3.2 / Qwen local]
+        DISPATCHER -->|BRIEFING| BRIEF_MOD[Briefing Matinal Coreografado]
+        DISPATCHER -->|BRIEFING_FOLLOWUP| BRIEF_FOLLOW[Aprofundamento de Notícias & Contexto]
         DISPATCHER -->|HARDWARE| HW_MOD[Sensores NVML & LHM]
         DISPATCHER -->|ABRIR_APP| APPS[Launcher de Aplicativos Win32]
         DISPATCHER -->|MEMORIA| CHROMA[ChromaDB RAG Semântico]
+        DISPATCHER -->|LEMBRETES| REMINDERS[Gerenciador de Agenda & Lembretes]
         DISPATCHER -->|VISAO| VISION
         DISPATCHER -->|WEB_MCP| MCP[Protocolo MCP & Web Search]
         DISPATCHER -->|CODIGO / LONGA| AIRLLM[AirLLM 32B/72B Sharded]
     end
 
     subgraph RESPOSTA ["📢 CAMADA DE SAÍDA & FEEDBACK"]
-        LLM_CONVERSA & HW_MOD & APPS & CHROMA & VISION & MCP & AIRLLM --> SYNTH[Orquestrador de Resposta]
-        SYNTH --> KOKORO[🗣️ Kokoro-TTS Neural CPU pm_alex]
+        LLM_CONVERSA & BRIEF_MOD & BRIEF_FOLLOW & HW_MOD & APPS & CHROMA & VISION & MCP & AIRLLM --> SYNTH[Orquestrador de Resposta]
+        SYNTH --> VOICE_MGR[🗣️ Gerenciador de Voz: Antonio Neural / Kokoro]
         SYNTH --> WS[⚡ FastAPI WebSocket Bridge]
-        KOKORO --> SPEAKERS[🔊 Reprodução de Áudio Pygame]
-        WS --> HUD[🌐 Interface 3D Three.js & Dock HUD]
+        VOICE_MGR --> SPEAKERS[🔊 Áudio com Efeito Jarvis Stark]
+        WS --> HUD[🌐 HUD Holográfico Three.js & Dock de Cards]
     end
 ```
 
@@ -73,43 +78,52 @@ flowchart TD
 
 ## 🚀 Funcionalidades Principais & Diferenciais Únicos
 
-### 1. 👂 Audição Contínua em Tempo Real (Zero Latência)
+### 1. 📡 Briefing Matinal Coreografado & Radar Executivo (Novidade)
+- **Varredura Multimodal Matinal**: Coleta simultânea e ultrarrápida de 7 pilares essenciais:
+  1. **Meteorologia Local**: Temperatura atual, sensação térmica, umidade, vento e condições climáticas (`wttr.in`).
+  2. **Agenda & Lembretes Pessoais**: Compromissos diários pendentes integrados à gaveta de lembretes.
+  3. **Mercado Financeiro em Tempo Real**: Cotações de Dólar, Euro e Bitcoin (AwesomeAPI) + fechamentos de Ibovespa (B3) e S&P 500 (Yahoo Finance).
+  4. **Radar Internacional & EUA**: Matérias apuradas em tempo real com imagens reais (BBC News Brasil / G1 Mundo).
+  5. **Radar Economia & Negócios**: Notícias e análises de mercado (G1 Economia / InfoMoney).
+  6. **Radar Tecnologia & Inteligência Artificial**: Últimos avanços em IA e inovação (G1 Tecnologia / TecMundo).
+  7. **Radar Política & Brasil**: Panorama dos três poderes e cenário nacional (G1 Política).
+- **Coreografia Sincronizada TTS + Visual**: O Jarvis apresenta cada card no centro da tela enquanto a esfera neural 3D encolhe suavemente para o canto superior esquerdo (**Modo Mini-Core**). Ao concluir a fala de um tópico, o card desliza e se ancora no **Dock Inferior Flutuante** via animação FLIP (*First, Last, Invert, Play*).
+- **Persistência Completa na Memória**: O briefing é salvo imediatamente tanto na memória de curto prazo (`memory_short`) quanto na memória vetorial (`memory_long` - ChromaDB).
+- **Aprofundamento de Notícias (Follow-up Inteligente)**: Ao perguntar *"Jarvis, me fale mais sobre esse assunto que o governo aprova"* ou *"me dê detalhes da notícia de tecnologia"*, o assistente localiza o card em cache, analisa o texto completo da matéria (ou faz fetch do link via `mcp_client.obter_conteudo_url`) e oferece uma análise aprofundada e fluida.
+- **Card Expandido com Rolagem Livre e Botões**:
+  - Área rolável estilizada `.card-scrollable-body` com scroll suave pelo mouse wheel.
+  - **`🔊 Ouvir Detalhes`**: Solicita ao Jarvis que leia a íntegra da matéria em voz alta.
+  - **`🌐 Ler na Fonte ↗`**: Abre a matéria original diretamente na fonte em uma nova aba do navegador.
+
+### 2. 👂 Audição Contínua em Tempo Real & Detector de Silêncio Aprimorado
 - **Driver DirectSound Dedicado**: O Jarvis seleciona nativamente o driver DirectSound do Windows (`hostapi=1`), garantindo ganho de sinal até 10x maior que os drivers MME convencionais.
 - **Pré-Buffer Circular Persistente (1.5s)**: Um buffer rotativo guarda os últimos 1.5 segundos de som. Quando você começa a falar, a primeira sílaba nunca é cortada.
-- **Calibração Adaptativa de Ruído**: No boot, o sistema analisa o ruído da sala (ventoinhas, teclado) e ajusta dinamicamente a sensibilidade de corte.
-- **Teto de Segurança & Botão Manual**: Trava automática de 8 segundos para evitar gravações infinitas e controle de parada instantâneo.
+- **Calibração Adaptativa de Ruído & Fim de Fala Rápido**: O teto de fala foi expandido para **15 segundos** (`MAX_DURACAO_FALA = 15.0s`), e o detector de silêncio encerra a gravação após 16 frames (~1.0s) de silêncio sustentado, agilizando o envio para a transcrição Whisper CUDA.
+- **Controle Manual Instantâneo**: Botão **`[ ⏹️ PARAR E ENVIAR ]`** no HUD para interrupção forçada imediata.
 
-### 2. 🗣️ Síntese de Voz Neural Ultrarrápida (Kokoro-TTS)
-- **Voz Local e Expressiva**: Utiliza a arquitetura neural **Kokoro-TTS** com pipeline em português brasileiro (`pm_alex`), gerando áudio natural e fluido em frações de segundo na CPU.
-- **Filtro Anti-Eco**: Assim que a fala do assistente termina, o buffer do microfone é imediatamente higienizado (`limpar_pre_buffer()`), evitando que o Jarvis escute a própria voz através dos alto-falantes.
-- **Rede de Segurança Tripla**: Se necessário, o Jarvis recorre automaticamente ao Edge-TTS (online) ou pyttsx3 (offline puro).
+### 3. 🗣️ Síntese Vocal Dupla (Modo Stark Neural & Kokoro Offline)
+- **Voz Padrão Oficial**: `pt-BR-AntonioNeural` (Edge-TTS) com Zero consumo de CPU/GPU, latência instantânea e filtro sonoro de modulação de voz (estilo rádio/sci-fi Stark).
+- **Fallback Automático Kokoro**: Em caso de oscilação ou ausência de internet, o sistema comuta instantaneamente para o modelo local `Kokoro-TTS` (`blend_jarvis` / `pm_alex`), garantindo operação 100% ininterrupta.
+- **Filtro Anti-Eco**: Higienização automática do buffer do microfone após cada fala (`limpar_pre_buffer()`), impedindo que o assistente escute a própria voz nos alto-falantes.
 
-### 3. 🌐 Interface Holográfica 3D Reativa & Dock de Controle (Three.js)
-- **Núcleo em Três Dimensões**: Uma esfera de partículas procedural inspirada no reator arc que pulsa, deforma e altera seu comportamento de acordo com a intensidade da fala e o tipo de tarefa executada.
-- **Padrões de Movimento**:
-  - 🔵 **Ciano Vivo (`conversa`)**: Esfera fluida e reativa, pronta para receber comandos.
-  - 🟡 **Dourado (`hardware`)**: Rotação axial sincronizada para telemetria e sensores.
-  - 🟣 **Violeta (`tarefa`)**: Padrão concentrado para processamento de código e visão.
-  - 🔴 **Vermelho Alerta (`alerta`)**: Oscilação de alta frequência em caso de sobreaquecimento físico.
-- **Painel Dock Flutuante**:
-  - Botão **`[ ⏹️ PARAR E ENVIAR ]`**: Interrompe o microfone imediatamente e envia o áudio para o Whisper.
-  - **Terminal de Comando por Texto**: Envio manual de solicitações sem necessidade de voz.
+### 4. 🌐 Interface Holográfica 3D & HUD Reativo (Three.js)
+- **Núcleo Neural 3D Procedural**: Esfera reativa inspirada no reator arc com pulsação física e deformação por ruído simplex de acordo com a voz e tarefa.
+- **Modo Mini-Core no Canto**: Sempre que houver cards ou conteúdo visual em destaque no centro, a esfera migra para o canto superior esquerdo e diminui sua escala, mantendo o palco livre para leitura e interação.
+- **Dock de Vidro Translúcido**: Fileira inferior sem bordas pesadas, exibindo mini-cards de vidro flutuantes com miniaturas reais e botões de expansão rápida.
+- **Gaveta Lateral de Lembretes**: Sistema de tarefas com horários, marcação de conclusão e modal rápido para inclusão de novos lembretes (`DADOS/lembretes.json`).
 
-### 4. 🧠 Memória Semântica de Longo Prazo (RAG via ChromaDB)
-- O Jarvis não esquece quem você é entre reinicializações.
-- **Coleção de Fatos**: Armazena preferências, nomes, segredos, hábitos e parâmetros do usuário.
-- **Histórico Conversacional**: Contexto temporal contínuo que enriquece os prompts com lembranças relevantes do passado usando busca vetorial por cosseno.
+### 5. 🧠 Memória Semântica de Longo Prazo (ChromaDB RAG)
+- O Jarvis mantém consciência temporal entre sessões.
+- **Coleção de Fatos**: Preferências, nomes, segredos, hábitos e credenciais locais.
+- **Histórico Conversacional**: Contexto vetorial contínuo pesquisado por similaridade de cosseno, garantindo que conversas passadas e briefings matinais sejam lembrados a qualquer momento.
 
-### 5. 🛡️ Sentinela Térmico & Telemetria Físico-Digital
-- Monitoramento contínuo da GPU via **NVIDIA NVML** (temperatura, consumo elétrico em Watts, VRAM em uso) e sensores da placa-mãe/CPU via **LibreHardwareMonitor**.
-- Proteção ativa: caso componentes excedam temperaturas seguras (85°C), o Jarvis emite alertas de voz com prioridade máxima para proteção dos circuitos.
+### 6. 🛡️ Sentinela Térmico & Telemetria Físico-Digital
+- Monitoramento contínuo da GPU via **NVIDIA NVML** (temperatura, consumo em Watts, uso de VRAM) e sensores da CPU/placa-mãe via **LibreHardwareMonitor**.
+- Alertas por voz prioritários caso os componentes atinjam limites térmicos críticos.
 
-### 6. 👁️ Olhos no seu Desktop (Visão Computacional)
+### 7. 👁️ Olhos no Desktop (Visão Computacional)
 - Integração com o modelo multimodal **Moondream (VLM)**.
-- O Jarvis tira prints silenciosos sob demanda, inspeciona códigos com erros na sua tela, descreve imagens, reconhece janelas ativas e ajuda a depurar bugs diretamente no seu editor.
-
-### 7. 🔌 Protocolo MCP (Model Context Protocol) & Conexão Web
-- Conexão padronizada para servidores de ferramentas e buscas na internet em tempo real (notícias, cotações financeiras, documentações e previsões meteorológicas).
+- Capturas invisíveis sob demanda para inspeção de erros no código, leitura de telas e auxílio operacional.
 
 ---
 
@@ -120,34 +134,41 @@ Meu_agente_de_IA/
 ├── DADOS/                        # Persistência de banco de dados e configs locais
 │   ├── config_paths.json         # Diretórios configurados de SSD e HD
 │   ├── model_registry.json       # Registro de especialistas e perfis de hardware
+│   ├── news_config.json          # Configuração de temas e cidade do briefing
+│   ├── lembretes.json            # Base de dados de tarefas e agenda pessoal
+│   ├── voice_config.json         # Configuração de voz e motor de síntese
 │   └── mcp_servers.json          # Configurações de servidores Model Context Protocol
 ├── INTERFACE/                    # Frontend holográfico e servidor visual
 │   ├── index.html                # Visualizador Three.js e Dashboard HUD
-│   ├── style.css                 # Estilização sci-fi glassmorphism
-│   └── app.js                    # Motor gráfico da esfera de partículas e WebSocket
+│   ├── style.css                 # Estilização sci-fi glassmorphism, scroll e Mini-Core
+│   └── app.js                    # Motor Three.js, coreografia de cards e WebSocket
 ├── MODULOS/                      # Núcleo modular do agente
 │   ├── brain/                    # Tomada de decisão, conversação e RAG
-│   │   ├── core/router.py        # Roteador neural de intenções
-│   │   ├── core/conversation.py  # Gerador de diálogo contextual
+│   │   ├── core/router.py        # Roteador neural de intenções e follow-up do briefing
+│   │   ├── core/conversation.py  # Gerador de diálogo contextual enriquecido
 │   │   ├── memory/handler.py     # Classificador semântico de memórias
 │   │   └── selector/             # Seletor automático de perfil de hardware
 │   ├── ear/                      # Audição e transcrição
-│   │   ├── recorder.py           # Captura DirectSound com pré-buffer e anti-ruído
+│   │   ├── recorder.py           # Captura DirectSound com 15s de teto e VAD rápido
 │   │   ├── transcriber.py        # Faster-Whisper Small CUDA
 │   │   └── states.py             # Máquina de estados do microfone
 │   ├── voice/                    # Síntese vocal
+│   │   ├── voice_manager.py      # Gestor de voz (Antonio Neural padrão + Kokoro fallback)
 │   │   ├── kokoro_tts_module.py  # Síntese neural local Kokoro (pt-BR)
-│   │   └── voice_manager.py      # Fila de prioridades e fallbacks
+│   │   └── audio_effects.py      # Efeitos de modulação vocal Jarvis
 │   ├── skills/                   # Habilidades ativas
-│   │   ├── hardware_module.py    # Leitura de sensores (NVML/LHM) e Sentinela
+│   │   ├── briefing_module.py    # Motor do Briefing Matinal, scraping e follow-up
+│   │   ├── reminders_module.py   # Gerenciador de agenda e lembretes
+│   │   ├── hardware_module.py    # Sensores de hardware (NVML/LHM)
 │   │   ├── vision_module.py      # Análise de tela via Moondream
-│   │   ├── actions_module.py     # Execução de comandos do Windows
+│   │   ├── actions_module.py     # Execução de comandos e apps do Windows
 │   │   ├── fii_monitor.py        # Monitor de mercado financeiro
-│   │   └── mcp_client.py         # Cliente MCP para internet e ferramentas
+│   │   └── mcp_client.py         # Cliente MCP para internet, cotações e web fetch
 │   ├── memory/                   # Banco vetorial ChromaDB persistente
 │   └── system/                   # Infraestrutura, logs e sincronização
 ├── TESTES/                       # Suíte de testes unitários e diagnósticos
 ├── main.py                       # Orquestrador mestre e loop de vida do Jarvis
+├── empacotar.py                  # Script para empacotamento completo em CONTEXTO_JARVIS.md
 ├── requirements.txt              # Dependências do ecossistema
 └── README.md                     # Documentação oficial do projeto
 ```
@@ -202,12 +223,15 @@ Meu_agente_de_IA/
 
 | Objetivo | O que você pode dizer ou digitar | O que o Jarvis faz |
 | :--- | :--- | :--- |
+| **Briefing Matinal** | *"Jarvis, bom dia"* ou *"iniciar briefing matinal"* | Executa a telemetria matinal completa com desfile sincronizado de cards e voz. |
+| **Aprofundamento de Notícia** | *"Me fale mais sobre esse assunto que o governo aprova"* | Localiza a notícia do briefing em cache, lê os dados do artigo e detalha os desdobramentos. |
+| **Agenda & Lembretes** | *"Me lembre de enviar o relatório às 16:30"* | Registra a tarefa na agenda e exibe na gaveta lateral do HUD. |
 | **Conversa Geral** | *"Olá Jarvis, como estão seus sistemas hoje?"* | Gera uma resposta natural contextualizada via Llama 3.2. |
 | **Telemetria de PC** | *"Como estão as temperaturas da máquina?"* | Lê os sensores da GPU (NVML) e CPU em tempo real e relata graus e consumo. |
 | **Visão de Tela** | *"Dá uma olhada na minha tela e me diga o que vê."* | Tira um snapshot invisível e analisa o conteúdo via Moondream VLM. |
 | **Memória Contínua** | *"Jarvis, lembre que a senha do alarme é 4092."* | Grava o fato semanticamente no ChromaDB para uso futuro. |
 | **Resgate de Fato** | *"Você sabe qual é a senha do alarme?"* | Realiza uma busca vetorial nas suas memórias e responde precisamente. |
-| **Mercado Financeiro** | *"Como está o mercado de fundos imobiliários hoje?"* | Consulta dados consolidados de FIIs e resume oportunidades. |
+| **Mercado Financeiro** | *"Como está o mercado financeiro hoje?"* | Consulta cotações de Dólar, Euro, Bitcoin, Ibovespa e S&P 500 em tempo real. |
 | **Abrir Aplicativos** | *"Abre o Spotify para mim."* | Localiza o executável em cache e inicia o programa no Windows. |
 | **Parada Manual** | Clique no botão **`[ ⏹️ PARAR E ENVIAR ]`** | Corta o áudio instantaneamente e processa o que você acabou de falar. |
 
@@ -219,12 +243,17 @@ Meu_agente_de_IA/
   - Estruturação da arquitetura modular, ChromaDB e loop básico com Whisper.
 - **v0.02 (Multimodalidade & Three.js)**:
   - Adição do analisador visual Moondream, servidor FastAPI e visualizador 3D reativo.
-- **v0.03 - Alpha Atual (Estabilidade, Fala & HUD)**:
-  - ✨ Migração definitiva para o **Kokoro-TTS** com voz neural local em português.
-  - 🎤 Integração do driver **DirectSound** para o microfone com ganho 10x maior e zero atraso.
-  - 🖥️ Novo **Dock de Controle Flutuante** no HUD com botão neon de parada e caixa de entrada manual.
-  - 🛡️ Correção do falso positivo térmico no Sentinela de Hardware.
-  - 🧼 Higienização do pré-buffer de microfone contra eco pós-fala.
+- **v0.03 (Estabilidade de Áudio & HUD)**:
+  - Integração do driver DirectSound, dock de controle com botão neon e higienização de eco.
+- **v0.04 (Voz Neural Stark & Lembretes)**:
+  - Adoção da voz `pt-BR-AntonioNeural` (Edge-TTS) com fallback offline para Kokoro-TTS.
+  - Implementação do módulo de lembretes e agenda persistente no HUD.
+- **v0.05 - Versão Atual (Briefing Holográfico & Follow-up Neural)**:
+  - 📡 **Briefing Matinal Coreografado**: Apresentação de 7 cards multimídia (Clima, Agenda, Mercado, 4 Notícias) com animações FLIP e transição de esfera para Mini-Core.
+  - 📰 **Scraping Profundo de Matérias**: Extração assíncrona do texto integral de artigos e imagens reais `og:image` de fontes de notícias abertas.
+  - 🧠 **Memória & Rota de Aprofundamento**: Registro automático do briefing em memória de curto e longo prazo, permitindo perguntas de acompanhamento imediatas com resposta aprofundada via LLM.
+  - 🖱️ **UI/UX com Rolagem Livre e Interação**: Correção de overflow no CSS, scrollbar ciano estilizada e botões interativos para ouvir matérias e ler na fonte original.
+  - 🎤 **Audição Calibrada para 15s**: Ampliação da janela de fala e encerramento dinâmico por silêncio após 16 frames (~1s).
 
 ---
 

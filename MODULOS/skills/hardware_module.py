@@ -59,21 +59,39 @@ async def ler_temperatura_cpu_lhm():
 
 async def _ler_gpu_lhm() -> dict:
     """Lê dados da GPU via LHM — funciona com AMD e NVIDIA."""
-    resultado = {"gpu_temp": "N/A", "vram_used_gb": "N/A", "gpu_power": "N/A"}
+    resultado = {"gpu_load": 0, "gpu_temp": "N/A", "vram_used_gb": "N/A", "gpu_power": "N/A"}
+    if _NVIDIA_OK and gpu_handle:
+        try:
+            rates = pynvml.nvmlDeviceGetUtilizationRates(gpu_handle)
+            resultado['gpu_load'] = round(float(rates.gpu), 1)
+            resultado['gpu_temp'] = pynvml.nvmlDeviceGetTemperature(gpu_handle, pynvml.NVML_TEMPERATURE_GPU)
+            resultado['gpu_power'] = round(pynvml.nvmlDeviceGetPowerUsage(gpu_handle) / 1000.0, 1)
+            meminfo = pynvml.nvmlDeviceGetMemoryInfo(gpu_handle)
+            resultado['vram_used_gb'] = round(meminfo.used / (1024 ** 3), 2)
+            return resultado
+        except Exception:
+            pass
+
     dados = await _buscar_lhm()
     palavras_gpu = ['GPU', 'Radeon', 'GeForce', 'RX ', 'RTX', 'GTX']
     try:
-        for hardware in dados['Children'][0]['Children']:
+        for hardware in dados.get('Children', [{}])[0].get('Children', []):
             if any(p in hardware['Text'] for p in palavras_gpu):
-                for sensor_group in hardware['Children']:
+                for sensor_group in hardware.get('Children', []):
                     if sensor_group['Text'] == 'Temperatures':
-                        for s in sensor_group['Children']:
+                        for s in sensor_group.get('Children', []):
                             if 'GPU' in s['Text'] or 'Core' in s['Text']:
                                 resultado['gpu_temp'] = float(s['Value'].replace(',', '.').replace(' °C', ''))
                     elif sensor_group['Text'] == 'Load':
-                        pass
+                        for s in sensor_group.get('Children', []):
+                            if 'GPU Core' in s['Text'] or s['Text'] == 'GPU Core':
+                                val = s['Value'].replace(',', '.').replace(' %', '')
+                                try:
+                                    resultado['gpu_load'] = round(float(val), 1)
+                                except Exception:
+                                    pass
                     elif sensor_group['Text'] == 'Data':
-                        for s in sensor_group['Children']:
+                        for s in sensor_group.get('Children', []):
                             if 'Memory Used' in s['Text']:
                                 val = s['Value'].replace(',', '.').replace(' MB', '').replace(' GB', '')
                                 try:
@@ -81,7 +99,7 @@ async def _ler_gpu_lhm() -> dict:
                                 except Exception:
                                     pass
                     elif sensor_group['Text'] == 'Powers':
-                        for s in sensor_group['Children']:
+                        for s in sensor_group.get('Children', []):
                             if 'GPU' in s['Text']:
                                 resultado['gpu_power'] = round(float(s['Value'].replace(',', '.').replace(' W', '')), 1)
     except Exception:
